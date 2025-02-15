@@ -1,1 +1,1 @@
-User-agent: * Disallow: Sitemap: https://sohamkorade.github.io/portfolio//sitemap.xml
+User-agent: * Disallow: Sitemap: https://sohamkorade.github.io/portfolio//portfolio//sitemap.xml
