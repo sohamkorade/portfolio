@@ -192,6 +192,14 @@ exclude:
   - README.md
   - readme_preview/
   - vendor
+# -----------------------------------------------------------------------------
+# Exclude pages
+# -----------------------------------------------------------------------------
+  - _pages/blog.md
+  - _pages/dropdown.md
+  - _pages/repositories.md
+  - _pages/profiles.md # people page
+  - _pages/teaching.md # teaching page
 keep_files:
   - CNAME
   - .nojekyll
@@ -637,15 +645,3 @@ jsonresume:
   - languages
   - interests
   - references
-
-
-# -----------------------------------------------------------------------------
-# Exclude pages
-# -----------------------------------------------------------------------------
-
-exclude:
-  - _pages/blog.md
-  - _pages/dropdown.md
-  - _pages/repositories.md
-  - _pages/profiles.md # people page
-  - _pages/teaching.md # teaching page
