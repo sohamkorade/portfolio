@@ -30,9 +30,11 @@ Hello! I'm a final-year BTech CSE student at IIIT Hyderabad, passionate about th
 
 **Experience:** Software Intern at [Disney+ Hotstar](https://www.disneyplus.com/en-in) and [Walmart Global Tech](https://tech.walmart.com/content/walmart-global-tech/en_us.html)
 
-**Honors work:** Advisor: [Prof. Bapi Raju](https://www.iiit.ac.in/people/bapi-raju/). Topics: Semantic networks, Chess and cognition, Graphic complexity in writing systems
+**Honors:** Advisor: [Prof. Bapi Raju](https://www.iiit.ac.in/people/bapi-raju/). Topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems
+
+**Independent study:** Advisor: [Prof. Vinoo Alluri](https://www.iiit.ac.in/people/vinoo-alluri/). Topics: Computational Musicology, Music and Cognition
 
 **Other work:**
-Working with [Prof. Vinoo Alluri](https://www.iiit.ac.in/people/vinoo-alluri/) and [Prof. Saroja TK](https://www.iiit.ac.in/faculty/saroja-t-k/) on developing computational tools for Indian classical music.
+Working with [Prof. Saroja TK](https://www.iiit.ac.in/faculty/saroja-t-k/) on developing computational tools for Indian classical music.
 
 <!-- **Research Interests:** Computational Musicology, Cognitive Science -->
