@@ -9,14 +9,7 @@ ninja.data = [{
     handler: () => {
       window.location.href = "/portfolio/";
     },
-  },{id: "nav-blog",
-          title: "blog",
-          description: "",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/portfolio/blog/";
-          },
-        },{id: "nav-publications",
+  },{id: "nav-publications",
           title: "publications",
           description: "",
           section: "Navigation",
@@ -25,17 +18,10 @@ ninja.data = [{
           },
         },{id: "nav-projects",
           title: "projects",
-          description: "A growing collection of your cool projects.",
+          description: "Expand each category to view my projects.",
           section: "Navigation",
           handler: () => {
             window.location.href = "/portfolio/projects/";
-          },
-        },{id: "nav-repositories",
-          title: "repositories",
-          description: "Edit the `_data/repositories.yml` and change the `github_users` and `github_repos` lists to include your own GitHub profile and repositories.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/portfolio/repositories/";
           },
         },{id: "nav-cv",
           title: "cv",
@@ -44,42 +30,7 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/portfolio/cv/";
           },
-        },{id: "nav-teaching",
-          title: "teaching",
-          description: "Materials for courses you taught. Replace this text with your description.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/portfolio/teaching/";
-          },
-        },{id: "nav-people",
-          title: "people",
-          description: "members of the lab or group",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/portfolio/people/";
-          },
-        },{id: "dropdown-publications",
-              title: "publications",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "";
-              },
-            },{id: "dropdown-projects",
-              title: "projects",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "";
-              },
-            },{id: "dropdown-blog",
-              title: "blog",
-              description: "",
-              section: "Dropdown",
-              handler: () => {
-                window.location.href = "/portfolio/blog/";
-              },
-            },{id: "post-a-post-with-image-galleries",
+        },{id: "post-a-post-with-image-galleries",
       
         title: "a post with image galleries",
       
@@ -88,17 +39,6 @@ ninja.data = [{
       handler: () => {
         
           window.location.href = "/portfolio/blog/2024/photo-gallery/";
-        
-      },
-    },{id: "post-google-gemini-updates-flash-1-5-gemma-2-and-project-astra",
-      
-        title: 'Google Gemini updates: Flash 1.5, Gemma 2 and Project Astra <svg width="1.2rem" height="1.2rem" top=".5rem" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M17 13.5v6H5v-12h6m3-3h6v6m0-6-9 9" class="icon_svg-stroke" stroke="#999" stroke-width="1.5" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-      
-      description: "We’re sharing updates across our Gemini family of models and a glimpse of Project Astra, our vision for the future of AI assistants.",
-      section: "Posts",
-      handler: () => {
-        
-          window.open("https://blog.google/technology/ai/google-gemini-update-flash-ai-assistant-io-2024/", "_blank");
         
       },
     },{id: "post-a-post-with-tabs",
@@ -321,17 +261,6 @@ ninja.data = [{
           window.location.href = "/portfolio/blog/2022/giscus-comments/";
         
       },
-    },{id: "post-displaying-external-posts-on-your-al-folio-blog",
-      
-        title: 'Displaying External Posts on Your al-folio Blog <svg width="1.2rem" height="1.2rem" top=".5rem" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><path d="M17 13.5v6H5v-12h6m3-3h6v6m0-6-9 9" class="icon_svg-stroke" stroke="#999" stroke-width="1.5" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
-      
-      description: "",
-      section: "Posts",
-      handler: () => {
-        
-          window.open("https://medium.com/@al-folio/displaying-external-posts-on-your-al-folio-blog-b60a1d241a0a?source=rss-17feae71c3c4------2", "_blank");
-        
-      },
     },{id: "post-a-post-with-redirect",
       
         title: "a post with redirect",
@@ -434,59 +363,196 @@ ninja.data = [{
     },{id: "news-a-simple-inline-announcement",
           title: 'A simple inline announcement.',
           description: "",
-          section: "News",},{id: "news-a-long-announcement-with-details",
-          title: 'A long announcement with details',
-          description: "",
-          section: "News",handler: () => {
-              window.location.href = "/portfolio/news/announcement_2/";
-            },},{id: "news-a-simple-inline-announcement-with-markdown-emoji-sparkles-smile",
-          title: 'A simple inline announcement with Markdown emoji! :sparkles: :smile:',
-          description: "",
-          section: "News",},{id: "projects-project-1",
-          title: 'project 1',
-          description: "with background image",
+          section: "News",},{id: "projects-adachat",
+          title: 'AdaChat',
+          description: "Messaging app for peers using a single remote server. Can also send files.  Python C++",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/1_project/";
-            },},{id: "projects-project-2",
-          title: 'project 2',
-          description: "a project with a background image and giscus comments",
+              window.location.href = "/portfolio/projects/adachat/";
+            },},{id: "projects-autoperft",
+          title: 'autoperft',
+          description: "Automatic perft checker for UCI chess engines.  Python",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/2_project/";
-            },},{id: "projects-project-3-with-very-long-name",
-          title: 'project 3 with very long name',
-          description: "a project that redirects to another website",
+              window.location.href = "/portfolio/projects/auto-perft/";
+            },},{id: "projects-barcode-decoding",
+          title: 'Barcode Decoding',
+          description: "Developed a CNN to detect barcodes in images, pre-process skewed barcodes, and decode them.  PyTorch OpenCV",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/3_project/";
-            },},{id: "projects-project-4",
-          title: 'project 4',
-          description: "another without an image",
+              window.location.href = "/portfolio/projects/barcode-decoding/";
+            },},{id: "projects-bash-like-shell",
+          title: 'Bash-like shell',
+          description: "A shell for Linux with ANSI colors, used POSIX syscalls for spawning/managing new processes. Background execution, piping, and redirection, wrote ls, discover commands from scratch.  C",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/4_project/";
-            },},{id: "projects-project-5",
-          title: 'project 5',
-          description: "a project with a background image",
+              window.location.href = "/portfolio/projects/bash-like-shell/";
+            },},{id: "projects-blow-flute",
+          title: 'Blow Flute',
+          description: "Play flute on phone by blowing into the microphone.  JavaScript Web Audio API",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/5_project/";
-            },},{id: "projects-project-6",
-          title: 'project 6',
-          description: "a project with no image",
+              window.location.href = "/portfolio/projects/blow-flute/";
+            },},{id: "projects-campitch",
+          title: 'CamPitch',
+          description: "Play music with your finger using your webcam.  JavaScript MediaPipe Web Audio API",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/6_project/";
-            },},{id: "projects-project-7",
-          title: 'project 7',
-          description: "with background image",
+              window.location.href = "/portfolio/projects/campitch/";
+            },},{id: "projects-cars",
+          title: 'Cars',
+          description: "3D game with AI car opponents, audience, 3 camera views. Wrote collision detection and physics.  JavaScript Three.js",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/7_project/";
-            },},{id: "projects-project-8",
-          title: 'project 8',
-          description: "an other project with a background image and giscus comments",
+              window.location.href = "/portfolio/projects/cars/";
+            },},{id: "projects-chess-analysis",
+          title: 'Chess Analysis',
+          description: "Allows users to upload their chess games and analyze them using the Stockfish chess engine. The user can also play with the engine.  JavaScript Chess.js Chessboard.js Stockfish",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/8_project/";
-            },},{id: "projects-project-9",
-          title: 'project 9',
-          description: "another project with an image 🎉",
+              window.location.href = "/portfolio/projects/chess-analysis/";
+            },},{id: "projects-chess-engine",
+          title: 'Chess Engine',
+          description: "Developed from scratch, uses α-β pruning, late-move reduction. GUI. Used OOPs.  C++ GTK",
           section: "Projects",handler: () => {
-              window.location.href = "/portfolio/projects/9_project/";
+              window.location.href = "/portfolio/projects/chess-engine/";
+            },},{id: "projects-composer",
+          title: 'Composer',
+          description: "N-gram based composer that composes in a particular raga. It generates the model using existing compositions in the raga.  JavaScript ABCjs",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/composer/";
+            },},{id: "projects-cyberchat",
+          title: 'CyberChat',
+          description: "A chatbot designed to answer queries regarding cybersecurity.  HTML CSS JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/cyberchat/";
+            },},{id: "projects-demoss",
+          title: 'DeMOSS',
+          description: "Used Tree-sitter to parse the source code and suggest refactorings to evade MOSS.  HTML CSS JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/demoss/";
+            },},{id: "projects-enhancing-xv6",
+          title: 'Enhancing xv6',
+          description: "Implemented and analyzed scheduling policies-- FCFS, Round Robin, PBS, and MLFQ. Wrote new system calls in C (strace, sigalarm, sigreturn). Implemented Copy-on-Write fork for xv6 operating system.  C",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/enhancing-xv6/";
+            },},{id: "projects-etymology",
+          title: 'Etymology',
+          description: "Show word etymology tree. Uses wiktionary data.  JavaScript Cytoscape.js Python",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/etymology/";
+            },},{id: "projects-game-of-life",
+          title: 'Game of Life',
+          description: "This is a simple implementation of Conway&#39;s Game of Life in JavaScript using canvas to render the cells.  JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/game-of-life/";
+            },},{id: "projects-jetpack-joyride-clone",
+          title: 'Jetpack Joyride Clone',
+          description: "Made as part of Computer Graphics Assignment 1  C++ OpenGL GLSL",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/jetpack-joyride-clone/";
+            },},{id: "projects-kbc-game",
+          title: 'KBC Game',
+          description: "Kaun Banega Crorepati style quiz game with full-fledged GUI and sound effects, used MySQL for database.  Python SQL GUI",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/kbc-game/";
+            },},{id: "projects-library-sort-implementation-and-analysis",
+          title: 'Library Sort Implementation and Analysis',
+          description: "Library sort is a modification of insertion sort that gains speed by trading space. As part of Introduction to Algorithms Engineering course.  C++ Python",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/library-sort/";
+            },},{id: "projects-loss-landscape-visualization",
+          title: 'Loss Landscape Visualization',
+          description: "Explored neural network loss functions and the impact of model architecture and training parameters on generalization in VGG and ResNet.  PyTorch",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/loss-landscape-visualization/";
+            },},{id: "projects-markov-bot",
+          title: 'Markov Bot',
+          description: "A chatbot that uses Markov chains trained on WhatsApp chat logs to generate responses. Used Flask to serve the web interface.  Python Flask",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/markov-bot/";
+            },},{id: "projects-meme-lang",
+          title: 'meme lang',
+          description: "Meme-lang is a programming language that compiles to javascript. It runs in browser.  JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/meme-lang/";
+            },},{id: "projects-mess-menu-helper",
+          title: 'Mess Menu Helper',
+          description: "A searchable web-version of the mess menu.  HTML CSS JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/mess-menu-helper/";
+            },},{id: "projects-n-gonal-prism-and-pyramid-visualizer",
+          title: 'n-gonal prism and pyramid visualizer',
+          description: "Made as part of Computer Graphics Assignment 0  C++ OpenGL GLSL",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/prism-pyramid-visualizer/";
+            },},{id: "projects-raag-identifier",
+          title: 'Raag Identifier',
+          description: "Identifies notes from live audio using FFT. Uses a database of 100+ Raags and identifies the Raag.  Android B4A",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/raag-identifier/";
+            },},{id: "projects-raga-cover-blitz",
+          title: 'Raga Cover Blitz',
+          description: "A two-player game to test raga knowledge.  JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/raga-cover-blitz/";
+            },},{id: "projects-ragaspace",
+          title: 'Ragaspace',
+          description: "Shows both Hindustani and Carnatic ragas in 2d raga space. Similar ragas are closer. Can enter a new phrase and see the closest raga it matches to in the graph.  JavaScript D3.js",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/ragaspace/";
+            },},{id: "projects-reddit-clone",
+          title: 'Reddit Clone',
+          description: "Full-stack (MERN) social media website with user profiles, posts, flagging, analytics. Docker-containerized.  MongoDB Express React Node.js",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/reddit-clone/";
+            },},{id: "projects-rubik-39-s-cube",
+          title: 'Rubik&amp;#39;s Cube',
+          description: "A Rubik&#39;s Cube simulator written from scratch. With solving algorithm.  JavaScript ThreeJS",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/rubiks-cube/";
+            },},{id: "projects-scroll-till-the-end",
+          title: 'Scroll till the End',
+          description: "A simple game to demonstrate Flutter and the live update of high-scores using Firebase.  Android Flutter Firebase",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/scroll-till-the-end/";
+            },},{id: "projects-shruti",
+          title: 'Shruti',
+          description: "Sing along with a vocal track, observe and correct your pitch visually.  JavaScript Web Audio API",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/shruti/";
+            },},{id: "projects-snake",
+          title: 'Snake',
+          description: "Snake game with powerups, high scores, and menus.  C++ ncurses",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/snake/";
+            },},{id: "projects-surfers",
+          title: 'Surfers',
+          description: "Subway surfers clone.  Three.js JavaScript",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/surfers/";
+            },},{id: "projects-swar-composer",
+          title: 'Swar Composer',
+          description: "Composition software for Hindustani Classical Music, uses Swarlipi notation, MIDI for playback/input, Tabla accompaniment, Raag Database and detection of Raags using N-grams.  VB.NET MIDI",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/swar-composer/";
+            },},{id: "projects-synthesia-clone",
+          title: 'Synthesia Clone',
+          description: "Playable piano with visualization of the notes.  JavaScript Web Audio API",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/synthesia-clone/";
+            },},{id: "projects-tetris",
+          title: 'Tetris',
+          description: "Developed from scratch, a fully-functional Tetris clone. Uses gestures for controls.  Android B4A",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/tetris/";
+            },},{id: "projects-top-racer",
+          title: 'Top Racer',
+          description: "Car racing game inspired by Subway Surfers. High scores, Powerups, Car Showroom.  VB6",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/top-racer/";
+            },},{id: "projects-washing-machine-dashboard",
+          title: 'Washing Machine Dashboard',
+          description: "Users can use this dashboard to check which washing machines are free. Used current sensor (WCS1800).  JavaScript HTML CSS",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/washing-machine-dashboard/";
+            },},{id: "projects-wordle",
+          title: 'Wordle',
+          description: "Wordle clone using pure C. Used ANSI escape codes for colors.  C",
+          section: "Projects",handler: () => {
+              window.location.href = "/portfolio/projects/wordle/";
             },},{
         id: 'social-email',
         title: 'email',
