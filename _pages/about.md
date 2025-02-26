@@ -38,3 +38,5 @@ Hello! I'm a final-year BTech CSE student at IIIT Hyderabad, passionate about th
 Working with [Prof. Saroja TK](https://www.iiit.ac.in/faculty/saroja-t-k/) on developing computational tools for Indian classical music.
 
 <!-- **Research Interests:** Computational Musicology, Cognitive Science -->
+
+There's some interesting code in my [projects]({{ site.baseurl }}/projects/) page.
