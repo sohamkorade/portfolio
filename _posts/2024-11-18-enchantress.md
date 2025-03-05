@@ -31,8 +31,6 @@ Silence gripped us like a total eclipse.
 And so, I hoped for our paths to intertwine,  
 For her to turn and see, her gaze to align.  
 Yet in her eyes, I found no reflection of me,  
-??  
-But her eyes held no reflection, no glimpse of me,  
 No flicker of recognition, nor curiosity.  
   
 The mirror of her gaze, a cruel illusion,  
@@ -69,10 +67,7 @@ Transient as shooting stars, they dance, then depart.
 The butterflies that once fluttered,  
 have vanished without a trace.  
 The fireworks that once lit up the sky,  
-are now ashes, smearing my face.  
-??  
-For the teenage sun, in its whimsical grace,  
-Paints a portrait of youth, an eternal embrace.  
+are now ashes, smearing my face.   
   
 That moment, with you by my side,  
 Life found its meaning, a joy I can't hide.  
