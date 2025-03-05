@@ -9,15 +9,6 @@ display_categories: [music, course-related, chess, game, web, other]
 horizontal: false
 ---
 
-```c
-#include <stdio.h>
-
-int main() {
-    __int128_t x = (__int128_t)0x29 << 64 | 0x3a20454d20595254;
-    puts((char*)&x);
-}
-```
-
 <!-- pages/projects.md -->
 <div class="projects">
 {% if site.enable_project_categories and page.display_categories %}
@@ -77,3 +68,14 @@ int main() {
   {% endif %}
 {% endif %}
 </div>
+
+---
+
+```c
+#include <stdio.h>
+
+int main() {
+    __int128_t x = (__int128_t)0x29 << 64 | 0x3a20454d20595254;
+    puts((char*)&x);
+}
+```
