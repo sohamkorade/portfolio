@@ -52,6 +52,17 @@ ninja.data = [{
           window.location.href = "/portfolio/blog/2024/i-want-to-fall-in-love-again/";
         
       },
+    },{id: "post-mild-rain",
+      
+        title: "mild rain",
+      
+      description: "",
+      section: "Posts",
+      handler: () => {
+        
+          window.location.href = "/portfolio/blog/2024/mild-rain/";
+        
+      },
     },{id: "post-enchantress",
       
         title: "enchantress",
