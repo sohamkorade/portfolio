@@ -30,6 +30,13 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/portfolio/cv/";
           },
+        },{id: "nav-teaching",
+          title: "teaching",
+          description: "",
+          section: "Navigation",
+          handler: () => {
+            window.location.href = "/portfolio/teaching/";
+          },
         },{id: "post-i-wasted-time",
       
         title: "i wasted time",
@@ -76,6 +83,12 @@ ninja.data = [{
       },
     },{id: "news-my-paper-on-a-notation-dataset-for-indian-raga-music-has-been-selected-for-wimaga-2025-i-will-be-presenting-my-work-on-the-7th-of-april-2025-in-hyderabad",
           title: 'My paper on “A Notation Dataset for Indian Raga Music” has been selected...',
+          description: "",
+          section: "News",},{id: "news-gave-a-talk-at-adcx-india-26-in-bengaluru-raga-as-data-symbolic-music-representations-for-analysis-visualization-amp-amp-audio-tools",
+          title: 'Gave a talk at ADCx India 26 in Bengaluru: Raga as Data: Symbolic...',
+          description: "",
+          section: "News",},{id: "news-attending-ismir-2026-in-abu-dhabi-nov-8-12-as-a-volunteer",
+          title: 'Attending ISMIR 2026 in Abu Dhabi (Nov 8–12) as a volunteer.',
           description: "",
           section: "News",},{id: "projects-adachat",
           title: 'AdaChat',
