@@ -31,7 +31,7 @@ I'm passionate about the intersection of technology and research. With a foundat
 
 **Education:** B.Tech CSE (Honors, Cognitive Science), [IIIT Hyderabad](https://www.iiit.ac.in/) (2021–2025)
 
-**Experience:** Product Software Engineer at [nowon AG](https://nowon.io/); previously Software Engineer at [Walmart Global Tech](https://tech.walmart.com/content/walmart-global-tech/en_us.html); internships at Beatoven.ai, Disney+ Hotstar, and Walmart
+**Experience:** Product Software Engineer at [nowon AG](https://nowon.io/); previously Software Engineer at [Walmart Global Tech](https://tech.walmart.com/content/walmart-global-tech/en_us.html); internships at [Beatoven.ai](https://www.beatoven.ai/), [Disney+ Hotstar](https://www.disneyplus.com/en-in), and [Walmart](https://tech.walmart.com/content/walmart-global-tech/en_us.html)
 
 **Honors Research:** Advisor: [Prof. Bapi Raju](https://www.iiit.ac.in/people/bapi-raju/). Topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems
 
