@@ -2,11 +2,12 @@
 layout: page
 permalink: /teaching/
 title: teaching
-description: Materials for courses you taught. Replace this text with your description.
+# description: Teaching assistantships at IIIT Hyderabad.
 nav: true
 nav_order: 6
 ---
 
-For now, this page is assumed to be a static description of your courses. You can convert it to a collection similar to `_projects/` so that you can have a dedicated page for each course.
+### Teaching Assistant — IIIT Hyderabad (Jul 2024 – May 2025)
 
-Organize your courses by years, topics, or universities, however you like!
+- **HS1.210 Music Workshop** — designed assignments, assisted the professor, and guided students in workshop projects.
+- **HS1.209 Music Language Creativity** — same role: coursework support and project mentoring.
