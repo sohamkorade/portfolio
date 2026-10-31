@@ -1,42 +1,95 @@
 {
   "basics": {
     "name": "Soham Korade",
-    "label": "Software Developer & Researcher",
+    "label": "Product Software Engineer at nowon AG",
     "image": "",
-    "email": "soham.korade@students.iiit.ac.in",
+    "email": "sohamkorade.jnvkk@gmail.com",
     "phone": "",
-    "url": "",
-    "summary": "Final year B.Tech (Honors) CSE student at IIIT Hyderabad with a strong passion for problem-solving, technology exploration, and research.",
+    "url": "https://sohamkorade.github.io/portfolio/",
+    "summary": "Product Software Engineer at nowon AG, working on music recognition and audio-AI. B.Tech CSE (Honors in Cognitive Science) from IIIT Hyderabad. Research interests in computational musicology, MIR, and cognition.",
     "location": {
-      "address": "IIIT Hyderabad",
-      "postalCode": "500032",
-      "city": "Hyderabad",
+      "address": "",
+      "postalCode": "",
+      "city": "Bengaluru",
       "countryCode": "IN",
-      "region": "Telangana"
+      "region": "Karnataka"
     },
     "profiles": [
       { "network": "GitHub", "username": "sohamkorade", "url": "https://github.com/sohamkorade" },
-      { "network": "LinkedIn", "username": "soham-korade", "url": "linkedin.com/in/soham-korade/" },
-      { "network": "Personal Website", "username": "", "url": "" },
-      { "network": "YouTube", "username": "", "url": "" }
+      { "network": "LinkedIn", "username": "soham-korade", "url": "https://www.linkedin.com/in/soham-korade/" },
+      { "network": "Personal Website", "username": "", "url": "https://sohamkorade.github.io/portfolio/" },
+      { "network": "YouTube", "username": "SohamShubhamMusic", "url": "https://www.youtube.com/@SohamShubhamMusic" }
     ]
   },
   "work": [
     {
+      "name": "nowon AG",
+      "position": "Product Software Engineer",
+      "url": "https://nowon.io/",
+      "startDate": "2026-09",
+      "endDate": "",
+      "location": "Lucerne, Switzerland (Remote)",
+      "summary": "Building music recognition and cue-sheet digitization products for live, broadcast, and platform audio."
+    },
+    {
+      "name": "Brain, Cognition and Computation Lab, IIIT Hyderabad",
+      "position": "Undergraduate Student Researcher",
+      "url": "https://www.iiit.ac.in/",
+      "startDate": "2023-05",
+      "endDate": "",
+      "summary": "Research on cognition, grapholinguistics, and related computational methods under Prof. Bapi Raju."
+    },
+    {
+      "name": "Walmart Global Tech",
+      "position": "Software Engineer",
+      "url": "https://tech.walmart.com/content/walmart-global-tech/en_us.html",
+      "startDate": "2025-07",
+      "endDate": "2026-09",
+      "location": "Bengaluru, India",
+      "summary": "Full-time software engineering role after graduation."
+    },
+    {
+      "name": "Beatoven.ai",
+      "position": "Technology Intern",
+      "url": "https://www.beatoven.ai/",
+      "startDate": "2025-05",
+      "endDate": "2025-07",
+      "location": "Bengaluru, India (Remote)",
+      "summary": "Internship at an AI music generation startup."
+    },
+    {
+      "name": "IIIT Hyderabad",
+      "position": "Teaching Assistant",
+      "url": "https://www.iiit.ac.in/",
+      "startDate": "2024-07",
+      "endDate": "2025-05",
+      "summary": "HS1.210 Music Workshop and HS1.209 Music Language Creativity — designed assignments, assisted the professor, and guided student projects."
+    },
+    {
       "name": "Disney+ Hotstar",
       "position": "Engineering Intern",
-      "url": "",
+      "url": "https://www.disneyplus.com/en-in",
       "startDate": "2024-07",
       "endDate": "2024-12",
-      "summary": "Developed and deployed a debug screen for Hotstar Android TV and Web TV app, enabling customizable configuration of playback features."
+      "location": "Bengaluru, India",
+      "summary": "Built a self-help feature for troubleshooting playback issues, with controlled access via A/B testing for targeted support."
     },
     {
       "name": "Walmart Global Tech India",
-      "position": "Software Development Intern",
-      "url": "",
+      "position": "Summer Intern",
+      "url": "https://tech.walmart.com/content/walmart-global-tech/en_us.html",
       "startDate": "2024-05",
       "endDate": "2024-07",
-      "summary": "Developed the frontend for Chile market's seller onboarding site using React and Formik. Participated in an internal hackathon, built an LLM-based app."
+      "location": "Bengaluru, India",
+      "summary": "Optimized form-generation code and documented backend query/mutation APIs. Built an AI chatbot for hiring; ranked top 50 of 2500 projects in Walmart Global Techathon '24."
+    },
+    {
+      "name": "F9 Hearts",
+      "position": "Full Stack Developer",
+      "url": "",
+      "startDate": "2023-01",
+      "endDate": "2023-05",
+      "summary": "Built backend for a cloud-based LMS and integrated RESTful APIs with the frontend, following Agile practices."
     }
   ],
   "education": [
@@ -45,26 +98,45 @@
       "location": "Hyderabad, India",
       "url": "https://www.iiit.ac.in/",
       "area": "Computer Science and Engineering",
-      "studyType": "B.Tech (Honors)",
+      "studyType": "B.Tech (Honors in Cognitive Science)",
       "startDate": "2021",
-      "endDate": "Present",
+      "endDate": "2025",
       "highlights": [
-        "Working under Prof. Bapi Raju on Brain Encoding and Decoding, Grapholinguistics (presented a paper)."
+        "Honors in Cognitive Science",
+        "Research with Prof. Bapi Raju (grapholinguistics, cognition) and computational musicology with Prof. Vinoo Alluri and Prof. Saroja TK"
+      ]
+    },
+    {
+      "institution": "Jawahar Navodaya Vidyalaya (JNV)",
+      "location": "India",
+      "url": "",
+      "area": "Physical Sciences",
+      "studyType": "CBSE Class XII",
+      "startDate": "2019",
+      "endDate": "2021",
+      "score": "97.2%",
+      "highlights": [
+        "First rank; 99/100 in Computer Science with Python",
+        "Chess Nationals (Class XI); Deputy House Captain (Class XII)"
       ]
     }
   ],
   "skills": [
     {
       "name": "Programming Languages",
-      "keywords": ["Python", "C", "C++", "Kotlin", "x86 Assembly", "C#"]
+      "keywords": ["Python", "C", "C++", "Kotlin", "JavaScript", "TypeScript", "x86 Assembly"]
     },
     {
       "name": "Web Development",
-      "keywords": ["React", "NodeJS", "PHP", "REST", "GraphQL", "Angular", "ThreeJS", "D3.js"]
+      "keywords": ["React", "Node.js", "REST", "GraphQL", "Three.js", "D3.js"]
     },
     {
       "name": "Machine Learning & AI",
-      "keywords": ["Flask", "Pandas", "Numpy", "Scikit-learn", "PyTorch", "Jupyter Notebooks"]
+      "keywords": ["PyTorch", "Pandas", "NumPy", "Scikit-learn", "Jupyter"]
+    },
+    {
+      "name": "Music Technology",
+      "keywords": ["MIR", "Symbolic music", "MIDI", "Computational musicology"]
     },
     {
       "name": "Databases & DevOps",
@@ -73,53 +145,95 @@
   ],
   "projects": [
     {
-      "name": "Loss Landscape Visualization",
-      "summary": "Explored neural network loss functions and the impact of model architecture and training parameters on generalization in VGG and ResNet."
-    },
-    {
-      "name": "Enhancing xv6",
-      "summary": "Implemented and analyzed scheduling policies: FCFS, Round Robin, PBS, and MLFQ. Wrote new system calls in C (strace, sigalarm, sigreturn). Implemented Copy-on-Write fork for xv6 operating system."
-    },
-    {
-      "name": "Chess Engine & GUI",
-      "summary": "Built from scratch in C++, using OOP principles. Used alpha-beta pruning to optimize minimax and deployed it as an online chess bot using the LiChess API."
+      "name": "Swar Composer",
+      "summary": "Composition software for Hindustani classical music with MIDI playback/input, Swarlipi parsing, and tabla sync."
     },
     {
       "name": "Raag Identifier",
-      "summary": "Developed a tool for Indian classical music analysis using FFT and N-grams."
+      "summary": "Raga database and detection using N-grams, with FFT-based mic input analysis."
+    },
+    {
+      "name": "Chess Engine & GUI",
+      "summary": "Built from scratch with alpha-beta pruning and late-move reduction; LiChess bot via API (@SohamChessBot)."
+    },
+    {
+      "name": "Loss Landscape Visualization",
+      "summary": "Explored neural network loss landscapes and the impact of architecture and training on generalization in VGG and ResNet."
     }
   ],
   "awards": [
     {
-      "title": "First Place - Megathon 2023",
-      "date": "2023",
-      "summary": "Developed a social media and psychometric analysis model using LLaMA."
+      "title": "First Place — Megathon 2023 (KonnectNXT)",
+      "date": "2023-10",
+      "summary": "Team Pandavas; generative AI applicants' dashboard using BERT, Transformers, and Llama 2. Cash prize ₹75,000."
     },
     {
-      "title": "First Place - Speedathon 2022 (Hosted by Micron)",
-      "date": "2022",
-      "summary": "Built a memory-optimized AI regression model."
+      "title": "First Place — Speedathon (Micron Technology India)",
+      "date": "2023-03",
+      "summary": "Team Hack3Man; memory-optimized AI model for map navigation. Cash prize ₹50,000."
     },
     {
-      "title": "National Level Chess Player",
-      "date": "2020-2021",
-      "summary": "Competed at the national level in Chess tournaments."
+      "title": "SGFI National Chess Championship U-19",
+      "date": "2020-01",
+      "summary": "Participated; FIDE Rapid rating 1455."
+    },
+    {
+      "title": "Pre-Regional Mathematical Olympiad (PRMO)",
+      "date": "2019-08",
+      "summary": "Qualified for Regional Mathematical Olympiad (HBCSE)."
+    },
+    {
+      "title": "NTSE Stage 1",
+      "date": "2018-11",
+      "summary": "Qualified (DSERT Karnataka)."
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "NLP4MusA 2026",
+      "position": "Reviewer",
+      "url": "https://sites.google.com/view/nlp4musa-2026/committee",
+      "startDate": "2026",
+      "summary": "Reviewer for the 4th Workshop on NLP for Music and Audio."
+    },
+    {
+      "organization": "ShrotaHouse",
+      "position": "Mentor",
+      "startDate": "",
+      "summary": "Mentored interns in music technology projects."
+    },
+    {
+      "organization": "IIIT Hyderabad Language Club",
+      "position": "Member",
+      "startDate": "",
+      "summary": "Planned and executed campus activities for language learning."
+    },
+    {
+      "organization": "Dakshana Foundation",
+      "position": "Exam Invigilator",
+      "startDate": "",
+      "summary": "Volunteered as invigilator for the Dakshana Scholarship Test."
     }
   ],
   "languages": [
-    { "language": "English", "fluency": "Professional Working Proficiency" },
-    { "language": "Hindi", "fluency": "Native" },
-    { "language": "Kannada", "fluency": "Native" },
-    { "language": "Marathi", "fluency": "Native" }
+    { "language": "English", "fluency": "Professional working proficiency" },
+    { "language": "Marathi", "fluency": "Native or bilingual proficiency" },
+    { "language": "Kannada", "fluency": "Native or bilingual proficiency" },
+    { "language": "Hindi", "fluency": "Native or bilingual proficiency" },
+    { "language": "Telugu", "fluency": "Elementary proficiency" }
   ],
   "interests": [
     {
       "name": "Music & Technology",
-      "keywords": ["Computational Musicology"]
+      "keywords": ["Computational musicology", "MIR", "Indian classical music"]
     },
     {
       "name": "Chess",
-      "keywords": ["Chess Engine Development", "LiChess API"]
+      "keywords": ["Chess engine development", "Competitive play"]
+    },
+    {
+      "name": "Languages",
+      "keywords": ["Linguistics", "Writing systems"]
     }
   ]
 }
