@@ -230,6 +230,7 @@
       "name": "A Notation Dataset for Indian Raga Music",
       "publisher": "WIMAGA, ICASSP 2025",
       "releaseDate": "2025-04",
+      "url": "https://doi.org/10.1109/ICASSPW65056.2025.11011153",
       "summary": "Built a dataset of 1,200+ Indian classical music compositions spanning 341 ragas (InRaMu; full corpus: 2,295 compositions in 337 ragas)."
     },
     {
@@ -243,7 +244,7 @@
       "name": "Graphic Complexity and Orthographic Neighbors: Observations based on Telugu Writing System",
       "publisher": "Grapholinguistics in the 21st century—From graphemes to knowledge",
       "releaseDate": "2024-10",
-      "url": "https://grafematik2024.sciencesconf.org/",
+      "url": "https://doi.org/10.36824/2024-graf-dugg",
       "summary": "Computed graphic complexity metrics for Telugu aksharas and analyzed their relationship to orthographic neighborhood size."
     }
   ],
