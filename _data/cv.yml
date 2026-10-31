@@ -78,6 +78,11 @@
 - title: Publications
   type: time_table
   contents:
+    - title: Induced Mood Shift and Cognitive Adaptation During Free Play in a Changing Tonic Context
+      institution: ICASSP 2026, Barcelona
+      year: 2026
+      description:
+        - Interactive experiment on how shifting tonic context affects free musical play, mood, and creative control with a touch-based pitch slider.
     - title: A Notation Dataset for Indian Raga Music
       institution: WIMAGA, ICASSP 2025
       year: 2025
