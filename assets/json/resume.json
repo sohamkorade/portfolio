@@ -1,12 +1,12 @@
 {
   "basics": {
     "name": "Soham Korade",
-    "label": "Product Software Engineer at nowon AG",
+    "role": "Product Software Engineer at nowon AG",
     "image": "",
     "email": "sohamkorade.jnvkk@gmail.com",
     "phone": "",
     "url": "https://sohamkorade.github.io/portfolio/",
-    "summary": "Product Software Engineer at nowon AG, working on music recognition and audio-AI. B.Tech CSE (Honors in Cognitive Science) from IIIT Hyderabad. Research interests in computational musicology, MIR, and cognition.",
+    "summary": "Product Software Engineer at nowon AG, translating music-AI research into production systems. B.Tech CSE (Honors in Cognitive Science) from IIIT Hyderabad. Research interests in computational musicology, MIR, and cognition.",
     "location": {
       "address": "",
       "postalCode": "",
@@ -29,7 +29,12 @@
       "startDate": "2026-09",
       "endDate": "",
       "location": "Lucerne, Switzerland (Remote)",
-      "summary": "Building music recognition and cue-sheet digitization products for live, broadcast, and platform audio."
+      "summary": "Building music recognition and cue-sheet digitization products for live, broadcast, and platform audio.",
+      "highlights": [
+        "Translating music-AI research into production-ready products by integrating R&D APIs into scalable software systems.",
+        "Handling infrastructure; building backend services and full-stack features for music recognition and audio analysis applications.",
+        "Owning product features end-to-end — system design, implementation, deployment, and production maintenance — with a focus on reliability and performance."
+      ]
     },
     {
       "name": "Brain, Cognition and Computation Lab, IIIT Hyderabad",
@@ -37,16 +42,24 @@
       "url": "https://www.iiit.ac.in/",
       "startDate": "2023-05",
       "endDate": "",
-      "summary": "Research on cognition, grapholinguistics, and related computational methods under Prof. Bapi Raju."
+      "summary": "Research on cognition, grapholinguistics, and related computational methods under Prof. Bapi Raju.",
+      "highlights": [
+        "Honors research topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems."
+      ]
     },
     {
       "name": "Walmart Global Tech",
-      "position": "Software Engineer",
+      "position": "Software Engineer II",
       "url": "https://tech.walmart.com/content/walmart-global-tech/en_us.html",
       "startDate": "2025-07",
       "endDate": "2026-09",
       "location": "Bengaluru, India",
-      "summary": "Full-time software engineering role after graduation."
+      "summary": "Full-time software engineering role after graduation.",
+      "highlights": [
+        "Engineered Spring Boot microservices for Multichannel Solutions, including Shopify integration, and independently owned an end-to-end Order Lifecycle Visualizer.",
+        "Strengthened service reliability by integrating services with a centralized testing platform, automating deployment pipelines, and improving CI workflows.",
+        "Built a forensic log analysis tool to investigate 300+ production errors, identify root causes for 78% of client failures, and uncover a critical P1 seller-facing bug."
+      ]
     },
     {
       "name": "Beatoven.ai",
@@ -55,7 +68,10 @@
       "startDate": "2025-05",
       "endDate": "2025-07",
       "location": "Bengaluru, India (Remote)",
-      "summary": "Internship at an AI music generation startup."
+      "summary": "Internship at an AI music generation startup.",
+      "highlights": [
+        "Led frontend development; optimized and shipped user-facing features using Next.js."
+      ]
     },
     {
       "name": "IIIT Hyderabad",
@@ -63,7 +79,10 @@
       "url": "https://www.iiit.ac.in/",
       "startDate": "2024-07",
       "endDate": "2025-05",
-      "summary": "HS1.210 Music Workshop and HS1.209 Music Language Creativity — designed assignments, assisted the professor, and guided student projects."
+      "summary": "HS1.210 Music Workshop and HS1.209 Music Language Creativity (2 semesters).",
+      "highlights": [
+        "Designed assignments, assisted the professor, and guided students in workshop projects."
+      ]
     },
     {
       "name": "Disney+ Hotstar",
@@ -72,16 +91,25 @@
       "startDate": "2024-07",
       "endDate": "2024-12",
       "location": "Bengaluru, India",
-      "summary": "Built a self-help feature for troubleshooting playback issues, with controlled access via A/B testing for targeted support."
+      "summary": "Android TV and WebOS streaming platforms.",
+      "highlights": [
+        "Worked on Android TV and WebOS platforms, A/B testing, and remote troubleshooting for large-scale streaming.",
+        "Built a self-help feature for troubleshooting playback issues, with controlled access via A/B testing for targeted support."
+      ]
     },
     {
-      "name": "Walmart Global Tech India",
-      "position": "Summer Intern",
+      "name": "Walmart Global Tech",
+      "position": "SDE Intern",
       "url": "https://tech.walmart.com/content/walmart-global-tech/en_us.html",
       "startDate": "2024-05",
       "endDate": "2024-07",
       "location": "Bengaluru, India",
-      "summary": "Optimized form-generation code and documented backend query/mutation APIs. Built an AI chatbot for hiring; ranked top 50 of 2500 projects in Walmart Global Techathon '24."
+      "summary": "Seller onboarding / Chile market.",
+      "highlights": [
+        "Built seller onboarding frontend for the Chile market (React, Formik).",
+        "Optimized form-generation code and documented backend query/mutation APIs.",
+        "Selected for the first round of an internal hackathon building an LLM-powered prototype; ranked top 50 of 2500 projects in Walmart Global Techathon '24."
+      ]
     },
     {
       "name": "F9 Hearts",
@@ -89,7 +117,10 @@
       "url": "",
       "startDate": "2023-01",
       "endDate": "2023-05",
-      "summary": "Built backend for a cloud-based LMS and integrated RESTful APIs with the frontend, following Agile practices."
+      "summary": "Cloud-based LMS startup.",
+      "highlights": [
+        "Built backend for a cloud-based LMS and integrated RESTful APIs with the frontend, following Agile practices."
+      ]
     }
   ],
   "education": [
@@ -102,8 +133,9 @@
       "startDate": "2021",
       "endDate": "2025",
       "highlights": [
-        "Honors in Cognitive Science",
-        "Research with Prof. Bapi Raju (grapholinguistics, cognition) and computational musicology with Prof. Vinoo Alluri and Prof. Saroja TK"
+        "Honors research: Semantic Networks, Grapholinguistics",
+        "Research with Prof. Bapi Raju (cognition, grapholinguistics) and computational musicology with Prof. Saroja TK and Prof. Vinoo Alluri",
+        "Teaching Assistant for Music Workshop (2 semesters)"
       ]
     },
     {
@@ -117,33 +149,62 @@
       "score": "97.2%",
       "highlights": [
         "First rank; 99/100 in Computer Science with Python",
-        "Chess Nationals (Class XI); Deputy House Captain (Class XII)"
+        "Chess Nationals (Class XI); Deputy House Captain (Class XII)",
+        "CBSE Class X: 95.4% (second rank across sections)"
       ]
     }
   ],
   "skills": [
     {
-      "name": "Programming Languages",
-      "keywords": ["Python", "C", "C++", "Kotlin", "JavaScript", "TypeScript", "x86 Assembly"]
+      "name": "Languages",
+      "keywords": ["C", "C++", "Java", "Python", "JavaScript", "TypeScript", "Kotlin", "Bash", "x86 Assembly"]
     },
     {
-      "name": "Web Development",
-      "keywords": ["React", "Node.js", "REST", "GraphQL", "Three.js", "D3.js"]
+      "name": "Systems / Infra",
+      "keywords": ["Linux", "Git", "CI/CD", "Docker", "Kubernetes", "Agile", "JIRA"]
     },
     {
-      "name": "Machine Learning & AI",
-      "keywords": ["PyTorch", "Pandas", "NumPy", "Scikit-learn", "Jupyter"]
+      "name": "Backend / Web",
+      "keywords": ["Spring Boot", "FastAPI", "React", "Next.js", "Node.js", "REST APIs", "GraphQL", "SQL", "MongoDB", "Firebase", "Three.js", "D3.js"]
+    },
+    {
+      "name": "ML / Data",
+      "keywords": ["PyTorch", "Scikit-learn", "Pandas", "NumPy", "Jupyter"]
     },
     {
       "name": "Music Technology",
-      "keywords": ["MIR", "Symbolic music", "MIDI", "Computational musicology"]
-    },
-    {
-      "name": "Databases & DevOps",
-      "keywords": ["SQL", "MongoDB", "Firebase", "Docker", "Agile", "JIRA"]
+      "keywords": ["MIR", "Symbolic music", "MIDI", "Computational musicology", "Audio-AI"]
     }
   ],
   "projects": [
+    {
+      "name": "Racket Compiler",
+      "summary": "Compiler for a Racket-inspired language with semantic analysis, static type checking, vector support, and LLVM-based code generation in C++."
+    },
+    {
+      "name": "Enhancing xv6",
+      "summary": "Extended xv6 with FCFS, Round Robin, PBS, and MLFQ schedulers; implemented strace, sigalarm, and sigreturn; analyzed scheduling tradeoffs and kernel behavior."
+    },
+    {
+      "name": "Bash-like shell",
+      "summary": "Unix-like shell in C using POSIX system calls: process management, piping, I/O redirection, background execution, and signal handling."
+    },
+    {
+      "name": "Library Sort",
+      "summary": "Implemented and benchmarked Library Sort in C++ against std::sort, insertion sort, and quicksort on datasets exceeding 10⁶ elements."
+    },
+    {
+      "name": "Barcode Decoding",
+      "summary": "CNN to detect and preprocess skewed barcodes in images, then decode them."
+    },
+    {
+      "name": "Chess Engine (and GUI)",
+      "summary": "Chess engine in C++ with minimax, alpha-beta pruning, iterative deepening, and late-move reduction; integrated with the Lichess API and deployed as an online chess bot (@SohamChessBot)."
+    },
+    {
+      "name": "JEE Advanced Rank Cutoff Visualizer",
+      "summary": "Explore/filter/analyze institute-wise cutoff trends (2016–2023). Scraped with bash (curl, wget); cleaned with pandas; visualized with d3.js."
+    },
     {
       "name": "Swar Composer",
       "summary": "Composition software for Hindustani classical music with MIDI playback/input, Swarlipi parsing, and tabla sync."
@@ -153,15 +214,38 @@
       "summary": "Raga database and detection using N-grams, with FFT-based mic input analysis."
     },
     {
-      "name": "Chess Engine & GUI",
-      "summary": "Built from scratch with alpha-beta pruning and late-move reduction; LiChess bot via API (@SohamChessBot)."
-    },
-    {
       "name": "Loss Landscape Visualization",
       "summary": "Explored neural network loss landscapes and the impact of architecture and training on generalization in VGG and ResNet."
     }
   ],
+  "publications": [
+    {
+      "name": "A Notation Dataset for Indian Raga Music",
+      "publisher": "WIMAGA, ICASSP 2025",
+      "releaseDate": "2025-04",
+      "summary": "Built a dataset of 1,200+ Indian classical music compositions spanning 341 ragas (InRaMu; full corpus: 2,295 compositions in 337 ragas)."
+    },
+    {
+      "name": "Raga Space Visualization: Analyzing Melodic Structures in Carnatic and Hindustani Music",
+      "publisher": "NLP4MusA, ISMIR 2024",
+      "releaseDate": "2024-11",
+      "url": "https://aclanthology.org/2024.nlp4musa-1.10/",
+      "summary": "Metadata extraction and normalization for symbolic music corpora; TF-IDF, Markov models, UMAP, and t-SNE for retrieval, clustering, and similarity analysis."
+    },
+    {
+      "name": "Graphic Complexity and Orthographic Neighbors: Observations based on Telugu Writing System",
+      "publisher": "Grapholinguistics in the 21st century—From graphemes to knowledge",
+      "releaseDate": "2024-10",
+      "url": "https://grafematik2024.sciencesconf.org/",
+      "summary": "Computed graphic complexity metrics for Telugu aksharas and analyzed their relationship to orthographic neighborhood size."
+    }
+  ],
   "awards": [
+    {
+      "title": "Talk at ADCx India 2026",
+      "date": "2026-03",
+      "summary": "Raga as Data: Symbolic Music Representations for Analysis, Visualization & Audio Tools."
+    },
     {
       "title": "First Place — Megathon 2023 (KonnectNXT)",
       "date": "2023-10",
@@ -173,9 +257,14 @@
       "summary": "Team Hack3Man; memory-optimized AI model for map navigation. Cash prize ₹50,000."
     },
     {
+      "title": "Selected for RMO, INOI, and NTSE",
+      "date": "",
+      "summary": "Olympiad and scholarship selections (PRMO → RMO; INOI; NTSE Stage 1)."
+    },
+    {
       "title": "SGFI National Chess Championship U-19",
       "date": "2020-01",
-      "summary": "Participated; FIDE Rapid rating 1455."
+      "summary": "National-level chess (Class 11 & 12); FIDE Rapid rating 1455."
     },
     {
       "title": "Pre-Regional Mathematical Olympiad (PRMO)",
@@ -189,6 +278,13 @@
     }
   ],
   "volunteer": [
+    {
+      "organization": "ISMIR 2026",
+      "position": "Volunteer",
+      "url": "https://ismir2026.ismir.net/",
+      "startDate": "2026-11",
+      "summary": "Attending ISMIR 2026 in Abu Dhabi as a volunteer."
+    },
     {
       "organization": "NLP4MusA 2026",
       "position": "Reviewer",
@@ -225,11 +321,11 @@
   "interests": [
     {
       "name": "Music & Technology",
-      "keywords": ["Computational musicology", "MIR", "Indian classical music"]
+      "keywords": ["Computational musicology", "MIR", "Indian classical music", "Audio-AI"]
     },
     {
       "name": "Chess",
-      "keywords": ["Chess engine development", "Competitive play"]
+      "keywords": ["Competitive play", "Chess engine development"]
     },
     {
       "name": "Languages",

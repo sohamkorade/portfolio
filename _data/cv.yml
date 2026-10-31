@@ -15,10 +15,15 @@
       institution: IIIT Hyderabad
       year: 2021 – 2025
       description:
-        - Research with Prof. Bapi Raju (cognition, grapholinguistics) and computational musicology with Prof. Vinoo Alluri and Prof. Saroja TK.
+        - Honors research: Semantic Networks, Grapholinguistics
+        - Research with Prof. Bapi Raju; computational musicology with Prof. Saroja TK and Prof. Vinoo Alluri
+        - Teaching Assistant for Music Workshop (2 semesters)
     - title: CBSE Class XII (97.2%)
       institution: Jawahar Navodaya Vidyalaya (JNV)
       year: 2019 – 2021
+      description:
+        - First rank; 99/100 in Computer Science with Python
+        - Chess Nationals (Class XI); Deputy House Captain (Class XII)
 
 - title: Experience
   type: time_table
@@ -27,54 +32,97 @@
       institution: nowon AG (Remote / Lucerne, Switzerland)
       year: Sep 2026 – Present
       description:
-        - Music recognition and audio-AI products for live, broadcast, and platform audio.
+        - Translating music-AI research into production-ready products by integrating R&D APIs into scalable systems.
+        - Backend and full-stack features for music recognition and audio analysis.
+        - End-to-end ownership: system design, implementation, deployment, and production maintenance.
     - title: Undergraduate Student Researcher
       institution: Brain, Cognition and Computation Lab, IIIT Hyderabad
       year: May 2023 – Present
-    - title: Software Engineer
+      description:
+        - Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems (Prof. Bapi Raju).
+    - title: Software Engineer II
       institution: Walmart Global Tech, Bengaluru
       year: Jul 2025 – Sep 2026
+      description:
+        - Spring Boot microservices for Multichannel Solutions, including Shopify integration; owned Order Lifecycle Visualizer.
+        - Centralized testing platform integration, automated deployment pipelines, and improved CI workflows.
+        - Forensic log analysis for 300+ production errors; root-caused 78% of client failures; uncovered a P1 seller-facing bug.
     - title: Technology Intern
       institution: Beatoven.ai
       year: May 2025 – Jul 2025
+      description:
+        - Led frontend development; shipped user-facing features with Next.js.
     - title: Teaching Assistant
       institution: IIIT Hyderabad (HS1.210, HS1.209)
       year: Jul 2024 – May 2025
+      description:
+        - Music Workshop / Music Language Creativity — assignments, mentoring, workshop projects.
     - title: Engineering Intern
       institution: Disney+ Hotstar, Bengaluru
       year: Jul 2024 – Dec 2024
-    - title: Summer Intern
-      institution: Walmart Global Tech India, Bengaluru
+      description:
+        - Android TV and WebOS; A/B testing and remote troubleshooting for large-scale streaming.
+        - Self-help playback troubleshooting feature with controlled A/B access.
+    - title: SDE Intern
+      institution: Walmart Global Tech, Bengaluru
       year: May 2024 – Jul 2024
+      description:
+        - Seller onboarding frontend for Chile market (React, Formik); LLM-powered hackathon prototype.
+        - Form-generation maintainability and backend API documentation.
     - title: Full Stack Developer
       institution: F9 Hearts
       year: Jan 2023 – May 2023
+      description:
+        - Backend for cloud-based LMS; REST API integration with frontend (Agile).
 
-- title: Honors and Awards
+- title: Publications
   type: time_table
   contents:
-    - year: 2023
-      items:
-        - Megathon Hackathon Winner (KonnectNXT) — ₹75,000
-        - Speedathon Hackathon Winner (Micron) — ₹50,000
-    - year: 2020
-      items:
-        - SGFI National Chess Championship U-19 participant
-    - year: 2019
-      items:
-        - PRMO qualifier (HBCSE)
-    - year: 2018
-      items:
-        - NTSE Stage 1
+    - title: A Notation Dataset for Indian Raga Music
+      institution: WIMAGA, ICASSP 2025
+      year: 2025
+      description:
+        - Dataset of 1,200+ Indian classical compositions spanning 341 ragas.
+    - title: Raga Space Visualization
+      institution: NLP4MusA, ISMIR 2024
+      year: 2024
+      description:
+        - Symbolic music corpora pipelines; TF-IDF, Markov models, UMAP, and t-SNE for retrieval and similarity.
+    - title: Graphic Complexity and Orthographic Neighbors (Telugu)
+      institution: Grapholinguistics in the 21st century
+      year: 2024
+      description:
+        - Graphic complexity metrics for Telugu aksharas vs. orthographic neighborhood size.
 
-- title: Academic Interests
+- title: Achievements
   type: list
   contents:
-    - Computational musicology and MIR
-    - Cognitive science
-    - Music technology / audio-AI
+    - Talk at ADCx India 2026
+    - First place, Megathon 2023 (KonnectNXT) — ₹75,000
+    - First place, Speedathon (Micron) — ₹50,000
+    - Selected for RMO, INOI, and NTSE
+    - National-level chess player (Class 11 & 12; FIDE 1455)
+    - PRMO qualifier (HBCSE); NTSE Stage 1
 
-- title: Other Interests
+- title: Volunteer
   type: list
   contents:
-    - <u>Hobbies:</u> Chess, piano, flute, guitar, languages
+    - ISMIR 2026 volunteer (Abu Dhabi)
+    - NLP4MusA 2026 reviewer
+    - ShrotaHouse mentor (music technology)
+    - IIIT Hyderabad Language Club
+    - Dakshana Foundation exam invigilator
+
+- title: Technical Skills
+  type: map
+  contents:
+    - name: Languages
+      value: C, C++, Java, Python, JavaScript, TypeScript, Kotlin, Bash, x86 Assembly
+    - name: Systems / Infra
+      value: Linux, Git, CI/CD, Docker, Kubernetes, Agile, JIRA
+    - name: Backend / Web
+      value: Spring Boot, FastAPI, React, Next.js, Node.js, REST, GraphQL, SQL, MongoDB, Firebase, Three.js, D3.js
+    - name: ML / Data
+      value: PyTorch, Scikit-learn, Pandas, NumPy, Jupyter
+    - name: Music Technology
+      value: MIR, Symbolic music, MIDI, Computational musicology, Audio-AI
