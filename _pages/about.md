@@ -24,17 +24,20 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-Hello! I'm a final-year BTech CSE student at IIIT Hyderabad, passionate about the intersection of technology and research. With a foundation in computer science and engineering, I’ve worked on projects ranging from MERN stack applications to ResNets and compilers to computational musicology. I am always eager to learn and explore new ideas, particularly those that bridge technology and and my hobbies: music, chess, languages.
+Hello! I'm a Product Software Engineer at [nowon AG](https://nowon.io/), working remotely from Bengaluru on music recognition and audio-AI. I graduated with a B.Tech in CSE (Honors in Cognitive Science) from [IIIT Hyderabad](https://www.iiit.ac.in/) in 2025.
 
-**Education:** B.Tech CSE, [IIIT Hyderabad](https://www.iiit.ac.in/) (2021-2025)
+I'm passionate about the intersection of technology and research. With a foundation in computer science and engineering, I’ve worked on projects ranging from MERN stack applications to ResNets and compilers to computational musicology. I am always eager to learn and explore new ideas, particularly those that bridge technology and and my hobbies: music, chess, languages.
 
-**Experience:** Software Intern at [Disney+ Hotstar](https://www.disneyplus.com/en-in) and [Walmart Global Tech](https://tech.walmart.com/content/walmart-global-tech/en_us.html)
 
-**Honors:** Advisor: [Prof. Bapi Raju](https://www.iiit.ac.in/people/bapi-raju/). Topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems
+**Education:** B.Tech CSE (Honors, Cognitive Science), [IIIT Hyderabad](https://www.iiit.ac.in/) (2021–2025)
+
+**Experience:** Product Software Engineer at [nowon AG](https://nowon.io/); previously Software Engineer at [Walmart Global Tech](https://tech.walmart.com/content/walmart-global-tech/en_us.html); internships at Beatoven.ai, Disney+ Hotstar, and Walmart
+
+**Honors Research:** Advisor: [Prof. Bapi Raju](https://www.iiit.ac.in/people/bapi-raju/). Topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems
 
 **Independent study:** Advisor: [Prof. Vinoo Alluri](https://www.iiit.ac.in/people/vinoo-alluri/). Topics: Computational Musicology, Music and Cognition
 
-**Other work:**
+**Music Research:**
 Working with [Prof. Saroja TK](https://www.iiit.ac.in/faculty/saroja-t-k/) on developing computational tools for Indian classical music.
 
 <!-- **Research Interests:** Computational Musicology, Cognitive Science -->
