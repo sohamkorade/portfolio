@@ -17,15 +17,35 @@ export function countChangedSlots(a, b) {
 }
 
 function stepDuration(step, atomMs) {
-  return step.kind === "combine" || step.kind === "attach" ? MS.atomCombine : atomMs;
+  // Matra combine/discombine and anusvāra attach/detach share one grain.
+  if (
+    step.kind === "combine" ||
+    step.kind === "discombine" ||
+    step.kind === "attach" ||
+    step.kind === "detach"
+  ) {
+    return MS.atomCombine;
+  }
+  return atomMs;
+}
+
+function isMarkStep(step) {
+  return (
+    step.kind === "combine" ||
+    step.kind === "discombine" ||
+    step.kind === "attach" ||
+    step.kind === "detach"
+  );
 }
 
 function gapBefore(prev, next) {
   if (!prev) return 0;
-  // Anusvāra/pulli attach is the same grain as matra combine.
-  if (next.kind === "attach") return MS.atomGap;
-  if (prev.kind === "attach") {
-    return next.slot === prev.slot ? MS.atomGap : MS.slotGap;
+  // Anusvāra/pulli attach·detach is the same grain as matra combine·discombine.
+  if (isMarkStep(next) || isMarkStep(prev)) {
+    if (next.slot === prev.slot) return MS.atomGap;
+    // Detach runs before the first changing slot; keep a short breath.
+    if (prev.kind === "detach" || next.kind === "discombine") return MS.atomGap;
+    return MS.slotGap;
   }
   if (next.slot !== prev.slot) return MS.slotGap;
   return MS.atomGap;
@@ -39,9 +59,10 @@ function attachPlans(script) {
 }
 
 /**
- * Ordered matra/base morph steps, with combine + anusvāra attach like matras.
- * Slot order is logical reading order (0→n). For RTL/cursive layouts logical 0
- * sits on the right, so the animation runs right→left on screen.
+ * Ordered leave-A → atom morph → settle-B steps.
+ * Matras and anusvāras share one grain: discombine/detach, then atoms, then
+ * combine/attach. Slot order is logical reading order (0→n). For RTL/cursive
+ * layouts logical 0 sits on the right, so the animation runs right→left on screen.
  */
 export function morphSteps(from, to, rtl = false) {
   const n = from.slots.length;
@@ -49,11 +70,26 @@ export function morphSteps(from, to, rtl = false) {
   for (let i = 0; i < n; i++) {
     if (!slotsEqual(from.slots[i], to.slots[i])) order.push(i);
   }
+  const changing = new Set(order);
 
   const attaches = attachPlans(to);
   const done = new Set();
   const fired = new Set();
   const steps = [];
+
+  // Leave settled A: undo anusvāra/pulli merges that involve a changing slot.
+  for (const st of attachPlans(from)) {
+    const idxs = st.slots || [];
+    if (idxs.length < 2 || !idxs.some((i) => changing.has(i))) continue;
+    steps.push({
+      kind: "detach",
+      slot: idxs[0],
+      markSlot: idxs[1],
+      compose: st,
+      atomCount: 2,
+      atom: -1,
+    });
+  }
 
   const flushAttach = () => {
     for (const st of attaches) {
@@ -73,13 +109,20 @@ export function morphSteps(from, to, rtl = false) {
   };
 
   for (const slot of order) {
-    const { n: atomN } = padAtoms(atomsOf(from.slots[slot]), atomsOf(to.slots[slot]));
+    const fromAtoms = atomsOf(from.slots[slot]);
+    const toAtoms = atomsOf(to.slots[slot]);
+    const { n: atomN } = padAtoms(fromAtoms, toAtoms);
+    // Leave settled A: split base|matra before correspondence.
+    if (fromAtoms.length > 1) {
+      steps.push({ slot, atom: -1, atomCount: atomN, kind: "discombine" });
+    }
     // RTL: morph atoms right→left within the syllable (same reading grain).
     for (let i = 0; i < atomN; i++) {
       const atom = rtl ? atomN - 1 - i : i;
       steps.push({ slot, atom, atomCount: atomN, kind: "atom" });
     }
-    if (atomN > 1) {
+    // Settle B: merge matured atoms into the syllable outline.
+    if (toAtoms.length > 1) {
       steps.push({ slot, atom: -1, atomCount: atomN, kind: "combine" });
     }
     done.add(slot);
@@ -122,11 +165,17 @@ function fineTicksForMorph(morphStart, from, to, reversed, fullscreen, opts = {}
       label:
         step.kind === "attach"
           ? step.compose?.term || "Mark combination"
-          : step.kind === "combine"
-            ? "Matra combination"
-            : step.atomCount > 1
-              ? "Matra correspondence"
-              : "Grapheme correspondence",
+          : step.kind === "detach"
+            ? step.compose?.term
+              ? `${step.compose.term} (leave)`
+              : "Mark separation"
+            : step.kind === "combine"
+              ? "Matra combination"
+              : step.kind === "discombine"
+                ? "Matra separation"
+                : step.atomCount > 1
+                  ? "Matra correspondence"
+                  : "Grapheme correspondence",
       fine: true,
     });
     acc += scaleDuration(stepDuration(step, atomMs), fullscreen);
@@ -255,15 +304,24 @@ export function morphProgress(from, to, localT, opts = {}) {
   const n = from.slots.length;
   const steps = morphSteps(from, to, opts.reversed);
   const progress = new Array(n).fill(0);
+  const discombineProgress = new Array(n).fill(0);
   const combineProgress = new Array(n).fill(0);
+  const detachProgress = new Array(n).fill(1);
   const attachProgress = new Array(n).fill(0);
   const atomProgress = Array.from({ length: n }, (_, i) => {
-    const { n: k } = padAtoms(atomsOf(from.slots[i]), atomsOf(to.slots[i]));
+    const fromAtoms = atomsOf(from.slots[i]);
+    const toAtoms = atomsOf(to.slots[i]);
+    const { n: k } = padAtoms(fromAtoms, toAtoms);
     const equal = slotsEqual(from.slots[i], to.slots[i]);
-    // Unchanged / single-atom slots skip the combine pass (treat as already whole).
-    if (equal || k <= 1) combineProgress[i] = 1;
+    // Unchanged / single-side slots skip that pass (treat as already done).
+    if (equal || fromAtoms.length <= 1) discombineProgress[i] = 1;
+    if (equal || toAtoms.length <= 1) combineProgress[i] = 1;
     return new Array(k).fill(equal ? 1 : 0);
   });
+
+  for (const step of steps) {
+    if (step.kind === "detach") detachProgress[step.slot] = 0;
+  }
 
   for (let i = 0; i < n; i++) {
     if (slotsEqual(from.slots[i], to.slots[i])) progress[i] = 1;
@@ -277,7 +335,9 @@ export function morphProgress(from, to, localT, opts = {}) {
     return {
       progress,
       atomProgress,
+      discombineProgress,
       combineProgress,
+      detachProgress,
       attachProgress,
       prepT: 1,
       changed: steps.map((s) => s.slot),
@@ -292,21 +352,24 @@ export function morphProgress(from, to, localT, opts = {}) {
     rem = Math.max(0, rem - prepShare);
   }
 
+  const applyStep = (step, t) => {
+    if (step.kind === "attach") attachProgress[step.slot] = t;
+    else if (step.kind === "detach") detachProgress[step.slot] = t;
+    else if (step.kind === "combine") combineProgress[step.slot] = t;
+    else if (step.kind === "discombine") discombineProgress[step.slot] = t;
+    else atomProgress[step.slot][step.atom] = t;
+  };
+
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i];
     const dur = stepDuration(step, atomMs);
     if (rem <= 0) break;
     if (rem < dur) {
-      const t = easeInOut(rem / dur);
-      if (step.kind === "attach") attachProgress[step.slot] = t;
-      else if (step.kind === "combine") combineProgress[step.slot] = t;
-      else atomProgress[step.slot][step.atom] = t;
+      applyStep(step, easeInOut(rem / dur));
       rem = 0;
       break;
     }
-    if (step.kind === "attach") attachProgress[step.slot] = 1;
-    else if (step.kind === "combine") combineProgress[step.slot] = 1;
-    else atomProgress[step.slot][step.atom] = 1;
+    applyStep(step, 1);
     rem -= dur;
     if (i < steps.length - 1) {
       rem = Math.max(0, rem - gapBefore(step, steps[i + 1]));
@@ -320,21 +383,34 @@ export function morphProgress(from, to, localT, opts = {}) {
       continue;
     }
     const atomAvg = ap.reduce((s, v) => s + v, 0) / ap.length;
-    const attach = attachProgress[i] || 0;
-    progress[i] = (atomAvg + (combineProgress[i] || 0) + attach) / (2 + (attach ? 1 : 0));
+    const parts = [
+      discombineProgress[i] || 0,
+      atomAvg,
+      combineProgress[i] || 0,
+    ];
+    // Detach starts at 1 when unused; only count when a leave-attach ran.
+    if (steps.some((s) => s.kind === "detach" && s.slot === i)) {
+      parts.unshift(detachProgress[i] || 0);
+    }
+    if (attachProgress[i]) parts.push(attachProgress[i]);
+    progress[i] = parts.reduce((s, v) => s + v, 0) / parts.length;
   }
 
   const changed = [
     ...new Set(
       steps.flatMap((s) =>
-        s.kind === "attach" ? [s.slot, s.markSlot] : [s.slot]
+        s.kind === "attach" || s.kind === "detach"
+          ? [s.slot, s.markSlot]
+          : [s.slot]
       )
     ),
   ];
   return {
     progress,
     atomProgress,
+    discombineProgress,
     combineProgress,
+    detachProgress,
     attachProgress,
     prepT: easeInOut(prepT),
     changed,

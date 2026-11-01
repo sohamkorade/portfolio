@@ -15,7 +15,7 @@ export const COMPACT_SCRIPTS = [
 export const MS = {
   atomMorph: 360, // per base/matra unit
   atomGap: 40, // gap between matras inside one syllable
-  atomCombine: 320, // merge matured atoms into the syllable outline
+  atomCombine: 320, // matra/anusvāra combine·discombine·attach·detach
   slotMorph: 480, // legacy alias; morph timing uses atomMorph
   slotGap: 70, // gap between syllable slots
   caseFold: 320,
