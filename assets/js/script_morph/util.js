@@ -1,4 +1,3 @@
-export const STORAGE_KEY = "script-morph-index";
 export const COMPACT_SPEED = 0.42;
 export const COMPACT_SCRIPTS = [
   "latin",

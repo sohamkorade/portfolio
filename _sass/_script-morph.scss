@@ -13,6 +13,7 @@
   gap: 0.35rem 0.65rem;
   max-width: 100%;
   min-height: 1em;
+  overflow: visible;
   line-height: 1;
   vertical-align: baseline;
 }
@@ -152,6 +153,23 @@
 
 .script-morph-host.is-active .script-morph {
   display: inline-flex;
+}
+
+// Compact: keep glyph left edge aligned with the resting h1 / about paragraph.
+// Park the prev chevron outside the flow so activating the widget doesn't nudge text.
+.script-morph:not(.script-morph--fullscreen) {
+  .script-morph__btn--prev {
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin: 0;
+  }
+
+  .script-morph__btn--prev.is-nudge {
+    // keep flash visible while absolutely positioned
+    transform: translateY(-50%);
+  }
 }
 
 .script-morph-host.is-active .script-morph:hover .script-morph__btn,

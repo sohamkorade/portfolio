@@ -1,5 +1,4 @@
 import {
-  STORAGE_KEY,
   COMPACT_SCRIPTS,
   REDUCED,
   scriptById,
@@ -22,7 +21,7 @@ export class ScriptMorph {
     this.compactCarousel = COMPACT_SCRIPTS.filter((id) =>
       this.carousel.includes(id)
     );
-    this.index = this._loadIndex();
+    this.index = Math.max(0, this.carousel.indexOf("latin"));
     this.active = false;
     this.fullscreen = false;
     this.animating = false;
@@ -40,20 +39,6 @@ export class ScriptMorph {
     Object.assign(this, buildWidget(data.accessible_name));
     host.appendChild(this.root);
     this._bind();
-  }
-
-  _loadIndex() {
-    try {
-      const v = parseInt(sessionStorage.getItem(STORAGE_KEY + ":" + this.data.id), 10);
-      if (!isNaN(v) && v >= 0 && v < this.carousel.length) return v;
-    } catch (_) {}
-    return Math.max(0, this.carousel.indexOf("latin"));
-  }
-
-  _saveIndex() {
-    try {
-      sessionStorage.setItem(STORAGE_KEY + ":" + this.data.id, String(this.index));
-    } catch (_) {}
   }
 
   _navList() {
@@ -107,11 +92,27 @@ export class ScriptMorph {
     this.host.classList.add("is-active");
     const hint = this.host.querySelector(".script-morph-hint");
     if (hint) hint.classList.add("is-hidden");
-    this.index = Math.max(0, this.carousel.indexOf("latin"));
-    this._saveIndex();
-    this._snap(this.carousel[this.index], true);
-    this.stage.focus();
+
+    // Always reopen on the first nav script, with first→second armed at t=0
+    // (paused) so glyph seek / seekbar / play work immediately.
+    const list = this._navList();
+    const fromId = list[0] || this.carousel[0];
+    const toId = list.length > 1 ? list[1] : fromId;
+    this.index = Math.max(0, this.carousel.indexOf(fromId));
     this._syncChooser();
+    this._announce(scriptById(this.data, fromId));
+
+    if (!fromId || toId === fromId || REDUCED) {
+      this._snap(fromId, true);
+    } else {
+      this._startTransition(fromId, toId, 0);
+      this._paused = true;
+      this._playing = false;
+      this._lastTs = 0;
+      this._syncPlayButton();
+    }
+
+    this.stage.focus();
     this._nudgeChevrons();
   }
 
@@ -131,8 +132,19 @@ export class ScriptMorph {
     if (!this.active) return;
     if (this.fullscreen) this.closeFullscreen();
     this._stop();
+    this._fromId = null;
+    this._toId = null;
+    this._timeline = null;
+    this._playheadMs = 0;
+    this._hoverSlot = null;
+    this._pressSlot = null;
+    // Next open starts from the first script again.
+    const firstId = this._navList()[0] || this.carousel[0];
+    this.index = Math.max(0, this.carousel.indexOf(firstId));
     this.active = false;
     this.host.classList.remove("is-active");
+    const hint = this.host.querySelector(".script-morph-hint");
+    if (hint) hint.classList.remove("is-hidden");
     this.label.focus();
   }
 
@@ -202,7 +214,6 @@ export class ScriptMorph {
     const fromId = this.carousel[this.index];
     const toId = this.carousel[nextIndex];
     this.index = nextIndex;
-    this._saveIndex();
     this._syncChooser();
     this._syncScriptName(scriptById(this.data, toId));
     this._startTransition(fromId, toId, 0);
@@ -267,9 +278,11 @@ export class ScriptMorph {
           this.animating = false;
           this._playing = false;
           this._setPhase("");
+          this.index = Math.max(0, this.carousel.indexOf(toId));
           this.root.dataset.script = toId;
           this.root.dataset.dir = to.dir;
           this._announce(to);
+          this._syncChooser();
           this._syncPlayButton();
           this._syncTransport();
           return;
