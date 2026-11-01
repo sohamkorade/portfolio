@@ -1,0 +1,344 @@
+/* Homepage script-morph: selectable label by default; widget on click/tap */
+
+.script-morph-host {
+  --sm-fg: var(--global-text-color);
+  --sm-hover: var(--global-theme-color, #2698da);
+  --sm-muted: var(--global-text-color-light, #888);
+  --sm-morph-from: #6aa9ff;
+  --sm-morph-to: #e8a87c;
+  --sm-slot-box: color-mix(in srgb, var(--sm-hover) 55%, transparent);
+  --sm-control-h: 2.4rem;
+  position: relative;
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.75rem;
+  max-width: 100%;
+}
+
+.script-morph-label {
+  cursor: pointer;
+  color: var(--sm-fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--sm-fg) 35%, transparent);
+  transition: text-decoration-color 0.18s ease;
+  user-select: text;
+
+  /* Keep name text color stable; only the underline reacts */
+  &,
+  &:hover,
+  &:focus-visible,
+  .font-weight-bold {
+    color: var(--sm-fg) !important;
+  }
+
+  &:hover,
+  &:focus-visible {
+    text-decoration-color: var(--sm-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sm-hover);
+    outline-offset: 3px;
+  }
+}
+
+.script-morph-hint {
+  font-size: 0.85rem;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--sm-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  animation: script-morph-hint-pulse 2.4s ease-in-out infinite;
+}
+
+.script-morph-hint.is-hidden,
+.script-morph-host.is-active .script-morph-hint {
+  display: none;
+}
+
+@keyframes script-morph-hint-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.script-morph-host.is-active .script-morph-label {
+  display: none;
+}
+
+.script-morph {
+  position: relative;
+  display: none;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  height: var(--sm-control-h);
+  vertical-align: bottom;
+}
+
+.script-morph__phase {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 0.35rem);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--sm-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.script-morph-host.is-active .script-morph {
+  display: inline-flex;
+}
+
+.script-morph-host.is-active .script-morph:hover .script-morph__btn,
+.script-morph-host.is-active .script-morph:focus-within .script-morph__btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.script-morph__stage {
+  cursor: pointer;
+  outline: none;
+  min-width: 8rem;
+  height: var(--sm-control-h);
+  line-height: 0;
+  display: flex;
+  align-items: center;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--sm-hover);
+    border-radius: 2px;
+  }
+}
+
+.script-morph__svg {
+  display: block;
+  height: var(--sm-control-h);
+  width: auto;
+  max-width: min(70vw, 24rem);
+  overflow: visible;
+  transform-origin: center center;
+  fill: var(--sm-fg);
+}
+
+.script-morph__slot--from {
+  fill: var(--sm-morph-from);
+}
+
+.script-morph__slot--to {
+  fill: var(--sm-morph-to);
+}
+
+.script-morph__slot--settling {
+  fill: var(--sm-fg);
+  transition: fill 0.45s ease;
+}
+
+/* Case-fold keeps a single ink color */
+.script-morph__row--casefold .script-morph__slot--from,
+.script-morph__row--casefold .script-morph__slot--to {
+  fill: var(--sm-fg);
+}
+
+.script-morph__slot-box {
+  fill: color-mix(in srgb, var(--sm-slot-box) 12%, transparent);
+  stroke: var(--sm-slot-box);
+  stroke-width: 18;
+  opacity: 0.35;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.script-morph__slot-box.is-active {
+  opacity: 1;
+  stroke: var(--sm-hover);
+}
+
+.script-morph--fullscreen .script-morph__svg {
+  height: min(28vh, 8rem);
+  max-width: min(70vw, 40rem);
+}
+
+.script-morph--fullscreen {
+  --sm-control-h: min(28vh, 8rem);
+  height: var(--sm-control-h);
+}
+
+.script-morph__btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--sm-muted);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  margin: 0;
+  padding: 0 0.45rem;
+  height: var(--sm-control-h);
+  min-width: 2.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.55rem;
+  line-height: 1;
+  flex: 0 0 auto;
+  transition: opacity 0.2s ease, color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--sm-fg);
+  }
+
+  &:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+    outline: 2px solid var(--sm-hover);
+    outline-offset: 2px;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .script-morph-host.is-active .script-morph__btn {
+    opacity: 0.7;
+    pointer-events: auto;
+  }
+}
+
+.script-morph-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  grid-template-columns: 1fr minmax(11rem, 16rem);
+  align-items: stretch;
+  background: color-mix(in srgb, var(--global-bg-color, #fff) 92%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.script-morph-overlay__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1.5rem;
+  min-width: 0;
+}
+
+.script-morph-overlay__close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 2;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--global-text-color);
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--sm-hover, #2698da);
+    outline-offset: 2px;
+  }
+}
+
+.script-morph-chooser {
+  border-left: 1px solid color-mix(in srgb, var(--sm-fg) 18%, transparent);
+  padding: 3.25rem 1rem 1.5rem;
+  overflow-y: auto;
+  background: color-mix(in srgb, var(--global-bg-color, #fff) 70%, transparent);
+}
+
+.script-morph-chooser__title {
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sm-muted);
+  margin: 0 0 0.75rem;
+}
+
+.script-morph-chooser__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.script-morph-chooser__btn {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--sm-fg);
+  cursor: pointer;
+  padding: 0.45rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  line-height: 1.25;
+
+  &:hover,
+  &:focus-visible {
+    background: color-mix(in srgb, var(--sm-hover) 16%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sm-hover);
+    outline-offset: 1px;
+  }
+
+  &[aria-current="true"] {
+    background: color-mix(in srgb, var(--sm-hover) 22%, transparent);
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 720px) {
+  .script-morph-overlay {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .script-morph-chooser {
+    border-left: 0;
+    border-top: 1px solid color-mix(in srgb, var(--sm-fg) 18%, transparent);
+    max-height: 40vh;
+    padding-top: 1rem;
+  }
+
+  .script-morph-overlay__close {
+    right: 0.75rem;
+  }
+}
+
+body.script-morph-open {
+  overflow: hidden;
+}
+
+.script-morph .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
