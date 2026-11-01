@@ -1,5 +1,3 @@
-/* Homepage script-morph: selectable label by default; widget on click/tap */
-
 .script-morph-host {
   --sm-fg: var(--global-text-color);
   --sm-hover: var(--global-theme-color, #2698da);
@@ -7,7 +5,6 @@
   --sm-morph-from: #6aa9ff;
   --sm-morph-to: #e8a87c;
   --sm-slot-box: color-mix(in srgb, var(--sm-hover) 55%, transparent);
-  /* Match the surrounding h1 em so open/close doesn't change line box height. */
   --sm-control-h: 1em;
   position: relative;
   display: inline-flex;
@@ -32,7 +29,6 @@
   line-height: 1;
   display: inline-block;
 
-  /* Keep name text color stable; only the underline reacts */
   &,
   &:hover,
   &:focus-visible,
@@ -52,7 +48,7 @@
 }
 
 .script-morph-hint {
-  font-size: 0.42em; /* relative to h1 so it doesn't inflate the title line box */
+  font-size: 0.42em;
   font-weight: 400;
   line-height: 1;
   color: var(--sm-muted);
@@ -114,7 +110,7 @@
 }
 
 .script-morph__phase {
-  display: none; /* compact: no phase labels */
+  display: none;
 }
 
 .script-morph--fullscreen .script-morph__phase {
@@ -169,7 +165,6 @@
   fill: var(--sm-fg);
 }
 
-/* Allow Nastaliq diagonals to overshoot the h1 line without growing the layout. */
 .script-morph-host.is-active {
   overflow: visible;
 }
@@ -191,13 +186,11 @@
   transition: fill 0.45s ease;
 }
 
-/* Case-fold keeps a single ink color */
 .script-morph__row--casefold .script-morph__slot--from,
 .script-morph__row--casefold .script-morph__slot--to {
   fill: var(--sm-fg);
 }
 
-/* Cursive join: isolated letters vs already-joined cluster */
 .script-morph__row--joining .script-morph__slot--unjoined {
   fill: var(--sm-morph-from);
 }
@@ -264,7 +257,6 @@
   }
 }
 
-/* Fullscreen: always-visible, larger prev/next with clear hit targets */
 .script-morph--fullscreen .script-morph__btn--prev,
 .script-morph--fullscreen .script-morph__btn--next {
   opacity: 1;
@@ -298,6 +290,9 @@
 }
 
 .script-morph-overlay {
+  --sm-fg: var(--global-text-color);
+  --sm-hover: var(--global-theme-color, #2698da);
+  --sm-muted: var(--global-text-color-light, #888);
   position: fixed;
   inset: 0;
   z-index: 2000;
@@ -309,13 +304,16 @@
 }
 
 .script-morph-overlay__main {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2.25rem;
-  padding: 2.5rem 1.5rem 2rem;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: stretch;
+  justify-items: center;
+  gap: 1.25rem;
+  padding: 2.5rem 1.5rem 1.5rem;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .script-morph-overlay__stage {
@@ -323,28 +321,40 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: var(--sm-control-h, 8rem);
+  min-height: 0;
+  align-self: center;
 }
 
 .script-morph__transport {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  width: min(36rem, 86%);
+  gap: 0.85rem;
+  width: min(40rem, 92%);
+  margin: 0 auto 0.35rem;
+  padding: 0.55rem 0.75rem;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--sm-fg) 16%, transparent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--global-bg-color, #fff) 88%, transparent);
+  z-index: 3;
+
+  &[hidden] {
+    display: none !important;
+  }
 }
 
 .script-morph__play {
   appearance: none;
   flex: 0 0 auto;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   margin: 0;
   padding: 0;
-  border: 1px solid color-mix(in srgb, var(--sm-fg) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sm-fg) 35%, transparent);
   border-radius: 2px;
   background: transparent;
   color: var(--sm-fg);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   cursor: pointer;
   display: inline-flex;
@@ -366,14 +376,19 @@
 .script-morph__seek-wrap {
   position: relative;
   flex: 1 1 auto;
-  height: 2.25rem;
+  height: 2.5rem;
   display: flex;
   align-items: center;
+  min-width: 0;
 }
 
 .script-morph__markers {
   position: absolute;
-  inset: 0 0 0 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
@@ -382,20 +397,21 @@
   position: absolute;
   top: 50%;
   width: 2px;
-  height: 0.7rem;
+  height: 0.85rem;
   margin: 0;
   padding: 0;
   border: 0;
-  background: color-mix(in srgb, var(--sm-fg) 35%, transparent);
+  background: color-mix(in srgb, var(--sm-fg) 45%, transparent);
   transform: translate(-50%, -50%);
   pointer-events: auto;
   cursor: pointer;
+  z-index: 2;
 
   &.is-active,
   &:hover,
   &:focus-visible {
     background: var(--sm-hover);
-    height: 1rem;
+    height: 1.15rem;
   }
 
   &:focus-visible {
@@ -407,35 +423,53 @@
 .script-morph__seek {
   -webkit-appearance: none;
   appearance: none;
+  position: relative;
+  z-index: 0;
   width: 100%;
-  height: 2px;
+  height: 2.5rem;
   margin: 0;
-  background: color-mix(in srgb, var(--sm-fg) 22%, transparent);
-  border-radius: 1px;
+  background: transparent;
   outline: none;
   cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sm-fg) 28%, transparent);
+  }
+
+  &::-moz-range-track {
+    height: 3px;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--sm-fg) 28%, transparent);
+    border: 0;
+  }
 
   &::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
+    margin-top: -5.5px;
     border-radius: 50%;
     background: var(--sm-fg);
-    border: 0;
+    border: 2px solid var(--global-bg-color, #fff);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sm-fg) 25%, transparent);
     cursor: pointer;
   }
 
   &::-moz-range-thumb {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: var(--sm-fg);
-    border: 0;
+    border: 2px solid var(--global-bg-color, #fff);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sm-fg) 25%, transparent);
     cursor: pointer;
   }
 
-  &:focus-visible::-webkit-slider-thumb {
+  &:focus-visible::-webkit-slider-thumb,
+  &:focus-visible::-moz-range-thumb {
     outline: 2px solid var(--sm-hover);
     outline-offset: 2px;
   }
