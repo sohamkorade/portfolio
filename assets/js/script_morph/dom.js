@@ -6,13 +6,15 @@ export function buildWidget(accessibleName) {
   root.setAttribute("role", "group");
   root.setAttribute("aria-label", accessibleName);
   root.innerHTML = `
-    <button type="button" class="script-morph__btn script-morph__btn--prev" aria-label="Previous script" title="Previous script">‹</button>
     <div class="script-morph__stage" tabindex="0" title="Click a letter to jump to its morph">
       <svg class="script-morph__svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
       <span class="script-morph__live sr-only" aria-live="polite"></span>
     </div>
-    <button type="button" class="script-morph__btn script-morph__btn--next" aria-label="Next script" title="Next script">›</button>
-    <span class="script-morph__script-name" aria-live="polite"></span>
+    <div class="script-morph__nav">
+      <button type="button" class="script-morph__btn script-morph__btn--prev" aria-label="Previous script" title="Previous script">‹</button>
+      <button type="button" class="script-morph__btn script-morph__btn--next" aria-label="Next script" title="Next script">›</button>
+      <span class="script-morph__script-name" aria-live="polite"></span>
+    </div>
     <button type="button" class="script-morph__btn script-morph__btn--fullscreen" aria-label="Expand script morph" title="Expand fullscreen">⛶</button>
     <button type="button" class="script-morph__btn script-morph__btn--exit" aria-label="Close script morph" title="Close">×</button>
     <span class="script-morph__phase" aria-live="polite" hidden></span>
