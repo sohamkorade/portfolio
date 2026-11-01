@@ -1,4 +1,11 @@
-import { MS, slotsEqual, scaleDuration, easeInOut } from "./util.js";
+import {
+  MS,
+  slotsEqual,
+  scaleDuration,
+  easeInOut,
+  atomsOf,
+  padAtoms,
+} from "./util.js";
 
 export function countChangedSlots(a, b) {
   if (!a?.slots || !b?.slots) return 0;
@@ -9,21 +16,126 @@ export function countChangedSlots(a, b) {
   return n;
 }
 
+function stepDuration(step, atomMs) {
+  return step.kind === "combine" || step.kind === "attach" ? MS.atomCombine : atomMs;
+}
+
+function gapBefore(prev, next) {
+  if (!prev) return 0;
+  // Anusvāra/pulli attach is the same grain as matra combine.
+  if (next.kind === "attach") return MS.atomGap;
+  if (prev.kind === "attach") {
+    return next.slot === prev.slot ? MS.atomGap : MS.slotGap;
+  }
+  if (next.slot !== prev.slot) return MS.slotGap;
+  return MS.atomGap;
+}
+
+function attachPlans(script) {
+  if (script.compose?.mode !== "attach") return [];
+  return (script.compose.steps || []).filter(
+    (st) => Array.isArray(st.slots) && st.slots.length >= 2 && st.path
+  );
+}
+
+/** Ordered matra/base morph steps, with combine + anusvāra attach like matras. */
+export function morphSteps(from, to, reversed = false) {
+  const n = from.slots.length;
+  const order = [];
+  for (let i = 0; i < n; i++) {
+    if (!slotsEqual(from.slots[i], to.slots[i])) order.push(i);
+  }
+  if (reversed) order.reverse();
+
+  const attaches = attachPlans(to);
+  const done = new Set();
+  const fired = new Set();
+  const steps = [];
+
+  const flushAttach = () => {
+    for (const st of attaches) {
+      if (fired.has(st)) continue;
+      const idxs = st.slots;
+      if (!idxs.every((i) => done.has(i))) continue;
+      fired.add(st);
+      steps.push({
+        kind: "attach",
+        slot: idxs[0],
+        markSlot: idxs[1],
+        compose: st,
+        atomCount: 2,
+        atom: -1,
+      });
+    }
+  };
+
+  for (const slot of order) {
+    const { n: atomN } = padAtoms(atomsOf(from.slots[slot]), atomsOf(to.slots[slot]));
+    for (let atom = 0; atom < atomN; atom++) {
+      steps.push({ slot, atom, atomCount: atomN, kind: "atom" });
+    }
+    if (atomN > 1) {
+      steps.push({ slot, atom: -1, atomCount: atomN, kind: "combine" });
+    }
+    done.add(slot);
+    flushAttach();
+  }
+  return steps;
+}
+
+function morphBodyMs(steps, atomMs) {
+  if (!steps.length) return 0;
+  let ms = 0;
+  for (let i = 0; i < steps.length; i++) {
+    if (i > 0) ms += gapBefore(steps[i - 1], steps[i]);
+    ms += stepDuration(steps[i], atomMs);
+  }
+  return ms;
+}
+
 export function morphDurationMs(from, to, opts = {}) {
-  const changed = countChangedSlots(from, to);
-  const slotMs = opts.duration || MS.slotMorph;
+  const atomMs = opts.duration || MS.atomMorph;
   const prep = opts.sameScript || opts.skipPrep ? 0 : MS.slotPrep;
-  const gaps = Math.max(0, changed - 1) * MS.slotGap;
-  return prep + changed * slotMs + gaps;
+  const steps = morphSteps(from, to, false);
+  return prep + morphBodyMs(steps, atomMs);
 }
 
 function withLower(script) {
   return script.slots_lower ? { ...script, slots: script.slots_lower } : script;
 }
 
+function fineTicksForMorph(morphStart, from, to, reversed, fullscreen, opts = {}) {
+  const atomMs = opts.duration || MS.atomMorph;
+  const prep = opts.skipPrep ? 0 : MS.slotPrep;
+  const steps = morphSteps(from, to, reversed);
+  const ticks = [];
+  let acc = morphStart + scaleDuration(prep, fullscreen);
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    ticks.push({
+      ms: acc,
+      label:
+        step.kind === "attach"
+          ? step.compose?.term || "Mark combination"
+          : step.kind === "combine"
+            ? "Matra combination"
+            : step.atomCount > 1
+              ? "Matra correspondence"
+              : "Grapheme correspondence",
+      fine: true,
+    });
+    acc += scaleDuration(stepDuration(step, atomMs), fullscreen);
+    if (i < steps.length - 1) {
+      acc += scaleDuration(gapBefore(step, steps[i + 1]), fullscreen);
+    }
+  }
+  return ticks;
+}
+
 /** Build seekable segments for from→to. Durations already scaled for compact/fullscreen. */
 export function planTimeline(from, to, fullscreen) {
   const segments = [];
+  const fineTicks = [];
   let t = 0;
   const add = (id, label, baseMs) => {
     const duration = scaleDuration(baseMs, fullscreen);
@@ -33,10 +145,17 @@ export function planTimeline(from, to, fullscreen) {
 
   let morphFrom = from;
   if (from.id === "latin" && from.slots_lower) {
+    const start = t;
     add(
       "case-out",
       "Case folding",
       morphDurationMs(from, withLower(from), { duration: MS.caseFold, sameScript: true })
+    );
+    fineTicks.push(
+      ...fineTicksForMorph(start, from, withLower(from), false, fullscreen, {
+        duration: MS.caseFold,
+        skipPrep: true,
+      })
     );
     morphFrom = withLower(from);
   }
@@ -47,10 +166,17 @@ export function planTimeline(from, to, fullscreen) {
 
   const enteringCursive = to.compose?.mode === "cursive";
   const leavingCursive = from.compose?.mode === "cursive";
+  const morphReversed = enteringCursive || leavingCursive;
 
   if (enteringCursive) {
     add("reverse", "Reading-order reversal", MS.reverse);
-    add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
+    {
+      const start = t;
+      add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
+      fineTicks.push(
+        ...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen)
+      );
+    }
     add("spread", "Isolation spacing", MS.spread);
     const joinSteps = (to.join_steps || []).length || to.slots.length;
     add(
@@ -60,31 +186,51 @@ export function planTimeline(from, to, fullscreen) {
     );
   } else if (leavingCursive) {
     add("segregate", "Cursive segregation", MS.segregate);
-    add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
+    {
+      const start = t;
+      add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
+      fineTicks.push(
+        ...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen)
+      );
+    }
     add("unreverse", "Reading-order reversal", MS.reverse);
   } else {
+    const start = t;
     add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
-  }
-
-  if (to.compose?.mode === "attach") {
-    const steps = (to.compose.steps || []).length || 1;
-    add(
-      "attach",
-      to.compose.steps?.[0]?.term || to.compose.term || "Mark attachment",
-      steps * MS.joinStep
+    fineTicks.push(
+      ...fineTicksForMorph(start, morphFrom, morphTo, false, fullscreen)
     );
   }
 
+  // Attach (anusvāra / pulli) runs inline in the morph segment like matra combine.
+
   if (enteringLatin) {
+    const start = t;
     add(
       "case-in",
       "Case folding",
       morphDurationMs(withLower(to), to, { duration: MS.caseFold, sameScript: true })
     );
+    fineTicks.push(
+      ...fineTicksForMorph(start, withLower(to), to, false, fullscreen, {
+        duration: MS.caseFold,
+        skipPrep: true,
+      })
+    );
   }
 
   add("settle", "Metric settling", MS.settle);
-  return { segments, total: Math.max(t, 1), from, to, morphFrom, morphTo, enteringLatin };
+  return {
+    segments,
+    fineTicks,
+    total: Math.max(t, 1),
+    from,
+    to,
+    morphFrom,
+    morphTo,
+    enteringLatin,
+    morphReversed,
+  };
 }
 
 function segmentAt(plan, ms) {
@@ -99,23 +245,39 @@ function segmentAt(plan, ms) {
   return { seg: last, local: 1, ms: clamped };
 }
 
-/** Per-slot morph progress (0–1) + prep t for a morph segment's local time. */
+/** Per-slot + per-matra morph progress for a morph segment's local time. */
 export function morphProgress(from, to, localT, opts = {}) {
   const n = from.slots.length;
+  const steps = morphSteps(from, to, opts.reversed);
   const progress = new Array(n).fill(0);
-  const changed = [];
+  const combineProgress = new Array(n).fill(0);
+  const attachProgress = new Array(n).fill(0);
+  const atomProgress = Array.from({ length: n }, (_, i) => {
+    const { n: k } = padAtoms(atomsOf(from.slots[i]), atomsOf(to.slots[i]));
+    const equal = slotsEqual(from.slots[i], to.slots[i]);
+    // Unchanged / single-atom slots skip the combine pass (treat as already whole).
+    if (equal || k <= 1) combineProgress[i] = 1;
+    return new Array(k).fill(equal ? 1 : 0);
+  });
+
   for (let i = 0; i < n; i++) {
-    if (!slotsEqual(from.slots[i], to.slots[i])) changed.push(i);
-    else progress[i] = 1;
+    if (slotsEqual(from.slots[i], to.slots[i])) progress[i] = 1;
   }
 
+  const atomMs = opts.duration || MS.atomMorph;
   const prepShare = opts.skipPrep ? 0 : MS.slotPrep;
-  const slotMs = opts.duration || MS.slotMorph;
-  const gapMs = MS.slotGap;
-  const morphBase =
-    changed.length * slotMs + Math.max(0, changed.length - 1) * gapMs;
+  const morphBase = morphBodyMs(steps, atomMs);
   const totalBase = prepShare + morphBase;
-  if (totalBase <= 0) return { progress, prepT: 1, changed };
+  if (totalBase <= 0) {
+    return {
+      progress,
+      atomProgress,
+      combineProgress,
+      attachProgress,
+      prepT: 1,
+      changed: steps.map((s) => s.slot),
+    };
+  }
 
   const localMs = localT * totalBase;
   let prepT = 1;
@@ -125,20 +287,53 @@ export function morphProgress(from, to, localT, opts = {}) {
     rem = Math.max(0, rem - prepShare);
   }
 
-  const order = opts.reversed ? [...changed].reverse() : changed;
-  for (let i = 0; i < order.length; i++) {
-    const idx = order[i];
+  for (let i = 0; i < steps.length; i++) {
+    const step = steps[i];
+    const dur = stepDuration(step, atomMs);
     if (rem <= 0) break;
-    if (rem < slotMs) {
-      progress[idx] = easeInOut(rem / slotMs);
+    if (rem < dur) {
+      const t = easeInOut(rem / dur);
+      if (step.kind === "attach") attachProgress[step.slot] = t;
+      else if (step.kind === "combine") combineProgress[step.slot] = t;
+      else atomProgress[step.slot][step.atom] = t;
       rem = 0;
       break;
     }
-    progress[idx] = 1;
-    rem -= slotMs;
-    if (i < order.length - 1) rem = Math.max(0, rem - gapMs);
+    if (step.kind === "attach") attachProgress[step.slot] = 1;
+    else if (step.kind === "combine") combineProgress[step.slot] = 1;
+    else atomProgress[step.slot][step.atom] = 1;
+    rem -= dur;
+    if (i < steps.length - 1) {
+      rem = Math.max(0, rem - gapBefore(step, steps[i + 1]));
+    }
   }
-  return { progress, prepT: easeInOut(prepT), changed: order };
+
+  for (let i = 0; i < n; i++) {
+    const ap = atomProgress[i];
+    if (!ap?.length) {
+      progress[i] = 1;
+      continue;
+    }
+    const atomAvg = ap.reduce((s, v) => s + v, 0) / ap.length;
+    const attach = attachProgress[i] || 0;
+    progress[i] = (atomAvg + (combineProgress[i] || 0) + attach) / (2 + (attach ? 1 : 0));
+  }
+
+  const changed = [
+    ...new Set(
+      steps.flatMap((s) =>
+        s.kind === "attach" ? [s.slot, s.markSlot] : [s.slot]
+      )
+    ),
+  ];
+  return {
+    progress,
+    atomProgress,
+    combineProgress,
+    attachProgress,
+    prepT: easeInOut(prepT),
+    changed,
+  };
 }
 
 /** Join progress: absorbed count + local t within current step. */

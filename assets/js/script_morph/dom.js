@@ -71,12 +71,19 @@ export function buildOverlay(carousel, data) {
 
 export function installMarkers(markersEl, plan) {
   if (!markersEl || !plan) return;
-  markersEl.innerHTML = plan.segments
-    .map((s) => {
-      const pct = (s.start / plan.total) * 100;
-      return `<button type="button" class="script-morph__marker" data-ms="${s.start}" data-label="${s.label}" style="left:${pct}%" title="${s.label}" aria-label="${s.label}"></button>`;
-    })
-    .join("");
+  const section = plan.segments.map((s) => {
+    const pct = (s.start / plan.total) * 100;
+    return `<button type="button" class="script-morph__marker" data-ms="${s.start}" data-label="${s.label}" style="left:${pct}%" title="${s.label}" aria-label="${s.label}"></button>`;
+  });
+  // Finer matra ticks inside morph/case segments (skip duplicates on section starts).
+  const sectionStarts = new Set(plan.segments.map((s) => Math.round(s.start)));
+  const fine = (plan.fineTicks || [])
+    .filter((tick) => !sectionStarts.has(Math.round(tick.ms)))
+    .map((tick) => {
+      const pct = (tick.ms / plan.total) * 100;
+      return `<button type="button" class="script-morph__marker script-morph__marker--fine" data-ms="${tick.ms}" data-label="${tick.label}" style="left:${pct}%" title="${tick.label}" aria-label="${tick.label}"></button>`;
+    });
+  markersEl.innerHTML = section.concat(fine).join("");
 }
 
 export function highlightMarker(transportEl, label) {

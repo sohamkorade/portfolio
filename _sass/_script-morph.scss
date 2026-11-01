@@ -420,6 +420,20 @@
   }
 }
 
+.script-morph__marker--fine {
+  width: 1px;
+  height: 0.45rem;
+  background: color-mix(in srgb, var(--sm-fg) 28%, transparent);
+  z-index: 1;
+
+  &.is-active,
+  &:hover,
+  &:focus-visible {
+    height: 0.7rem;
+    background: var(--sm-hover);
+  }
+}
+
 .script-morph__seek {
   -webkit-appearance: none;
   appearance: none;

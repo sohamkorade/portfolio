@@ -6,6 +6,8 @@ import {
   BOX_PAD,
   lerp,
   resolveAttachedSlots,
+  atomsOf,
+  padAtoms,
 } from "./util.js";
 import {
   displayMetrics,
@@ -15,25 +17,32 @@ import {
   rtlXs,
 } from "./metrics.js";
 
-function atomList(slot) {
-  return slot.atoms?.length > 1 ? slot.atoms : null;
-}
-
-function paintAtomPair(slotG, fromAtoms, toAtoms, t, fromPad, toPad, scale, dy) {
-  const n = Math.max(fromAtoms.length, toAtoms.length);
+/** Crossfade padded base/matra atoms using per-atom progress. */
+function paintAtomPair(
+  slotG,
+  fromAtoms,
+  toAtoms,
+  atomTs,
+  fromPad,
+  toPad,
+  scale,
+  dy,
+  atomOpacity = 1
+) {
+  const { from, to, n } = padAtoms(fromAtoms, toAtoms);
   let xFrom = fromPad;
   let xTo = toPad;
   for (let i = 0; i < n; i++) {
-    const a = fromAtoms[i] || fromAtoms[fromAtoms.length - 1];
-    const b = toAtoms[i] || toAtoms[toAtoms.length - 1];
-    const local = Math.max(0, Math.min(1, t * n - i));
+    const a = from[i];
+    const b = to[i];
+    const local = atomTs?.[i] ?? 0;
     if (a && !a.empty) {
       const p = el("path", {
         className: "script-morph__slot script-morph__slot--from",
         d: slotPath(a),
         transform: `translate(${xFrom}, 0)`,
       });
-      p.style.opacity = String(1 - local);
+      p.style.opacity = String((1 - local) * atomOpacity);
       slotG.appendChild(p);
       xFrom += a.advance || 0;
     }
@@ -43,22 +52,47 @@ function paintAtomPair(slotG, fromAtoms, toAtoms, t, fromPad, toPad, scale, dy) 
         d: slotPath(b),
         transform: `translate(${xTo}, ${dy}) scale(${scale})`,
       });
-      p.style.opacity = String(local);
+      p.style.opacity = String(local * atomOpacity);
       slotG.appendChild(p);
       xTo += (b.advance || 0) * scale;
     }
   }
 }
 
-/** Dual-path (or atom) crossfade for one morph snapshot. */
+function attachLookup(to, attachProgress) {
+  const byBase = new Map();
+  const byMark = new Map();
+  if (to.compose?.mode !== "attach") return { byBase, byMark };
+  for (const st of to.compose.steps || []) {
+    const [base, mark] = st.slots || [];
+    if (base == null || mark == null || !st.path) continue;
+    const t = attachProgress?.[base] ?? 0;
+    byBase.set(base, { mark, compose: st, t });
+    byMark.set(mark, { base, compose: st, t });
+  }
+  return { byBase, byMark };
+}
+
+/** Dual-path matra-level crossfade for one morph snapshot. */
 export function paintMorph(svg, state) {
-  const { morphFrom: from, morphTo: to, progress, prepT, sameScript, reversed } = state;
+  const {
+    morphFrom: from,
+    morphTo: to,
+    progress,
+    atomProgress,
+    combineProgress,
+    attachProgress,
+    prepT,
+    sameScript,
+    reversed,
+  } = state;
   const n = from.slots.length;
   const fromGap = from.family === "arabic" ? ISOL_GAP : 0;
   const fit = sameScript
     ? { scale: 1, dy: 0, fromM: displayMetrics(from) }
     : morphToFit(from, to);
   const { scale: toScale, dy: toDy } = fit;
+  const { byBase, byMark } = attachLookup(to, attachProgress);
 
   const g = el("g", {
     className: sameScript
@@ -75,16 +109,59 @@ export function paintMorph(svg, state) {
     const b = to.slots[logical];
     const t = progress[logical];
     const changed = !slotsEqual(a, b);
+    const markInfo = byMark.get(logical);
+    const baseInfo = byBase.get(logical);
+    const attachT = markInfo?.t ?? baseInfo?.t ?? 0;
+    const absorbedMark = markInfo && attachT >= 0.999;
+
+    if (absorbedMark) {
+      items.push({
+        slotG: null,
+        startCellW: Math.max(a.advance || 0, 1),
+        endCellW: 0,
+        skip: true,
+      });
+      continue;
+    }
+
+    let displayB = b;
+    let advB = (b.advance || 0) * toScale;
+    if (baseInfo && attachT >= 0.999) {
+      displayB = {
+        ...b,
+        path: baseInfo.compose.path,
+        points: baseInfo.compose.points,
+        advance: baseInfo.compose.advance,
+        bounds: baseInfo.compose.bounds,
+        empty: baseInfo.compose.empty,
+      };
+      advB = (baseInfo.compose.advance || 0) * toScale;
+    } else if (baseInfo && attachT > 0) {
+      advB = lerp(
+        (b.advance || 0) * toScale,
+        (baseInfo.compose.advance || 0) * toScale,
+        attachT
+      );
+    }
+
     const advA = a.advance || 0;
-    const advB = (b.advance || 0) * toScale;
     const startCellW = Math.max(advA, 1);
-    const endCellW = Math.max(advA, advB, 1);
-    const cellW = lerp(startCellW, endCellW, prepT);
-    const fromPadX = ((endCellW - advA) / 2) * prepT;
-    const toPadX = (cellW - advB) / 2;
+    let endCellW = Math.max(advA, advB, 1);
+    if (markInfo && attachT > 0) {
+      endCellW = lerp(Math.max(advA, (b.advance || 0) * toScale, 1), 0, attachT);
+      advB = endCellW;
+    }
+    const cellW = lerp(startCellW, Math.max(endCellW, 0.01), prepT);
+    const fromPadX = ((Math.max(endCellW, 1) - advA) / 2) * prepT;
+    const toPadX = (cellW - Math.max(advB, 0.01)) / 2;
+    const fromAtoms = atomsOf(a);
+    const toAtoms = atomsOf(b);
+    const { n: atomN } = padAtoms(fromAtoms, toAtoms);
+    const needsCombine = changed && atomN > 1;
+    const combine = needsCombine ? combineProgress?.[logical] ?? 0 : 1;
 
     const ba = a.bounds || [0, 0, advA, 800];
-    const bbRaw = b.bounds || [0, 0, b.advance || 0, 800];
+    const bbRaw = displayB.bounds || b.bounds || [0, 0, b.advance || 0, 800];
     const by =
       Math.min(ba[1], bbRaw[1] * toScale + toDy) - BOX_PAD;
     const bh =
@@ -100,10 +177,11 @@ export function paintMorph(svg, state) {
       height: Math.max(bh, 1),
       rx: 20,
     });
-    box.style.opacity = changed
-      ? String(0.35 * prepT + (t > 0 && t < 1 ? 0.65 : 0))
+    const activeAttach = attachT > 0 && attachT < 1;
+    box.style.opacity = changed || activeAttach
+      ? String(0.35 * prepT + (t > 0 && t < 1 || activeAttach ? 0.65 : 0))
       : "0";
-    if (t > 0 && t < 1) box.classList.add("is-active");
+    if ((t > 0 && t < 1) || activeAttach) box.classList.add("is-active");
 
     const slotG = el("g", {
       className: changed
@@ -114,29 +192,104 @@ export function paintMorph(svg, state) {
     });
     slotG.appendChild(box);
 
-    const fromAtoms = atomList(a);
-    const toAtoms = atomList(b);
-    if (fromAtoms && toAtoms && changed) {
-      paintAtomPair(slotG, fromAtoms, toAtoms, t, fromPadX, toPadX, toScale, toDy);
-    } else {
-      const pathFrom = el("path", {
-        className: "script-morph__slot script-morph__slot--from",
-        d: slotPath(a),
-        transform: `translate(${fromPadX}, 0)`,
+    const atomTs =
+      atomProgress?.[logical] ||
+      (changed ? [t] : [1]);
+
+    if (baseInfo && attachT > 0.001) {
+      // Anusvāra/pulli combine: fade base (+ its matured atoms) into composed outline.
+      const baseOpacity = 1 - attachT;
+      if (needsCombine && combine < 0.999) {
+        paintAtomPair(
+          slotG,
+          fromAtoms,
+          toAtoms,
+          atomTs,
+          fromPadX,
+          toPadX,
+          toScale,
+          toDy,
+          baseOpacity * (1 - combine)
+        );
+        if (combine > 0.001) {
+          const syl = el("path", {
+            className: "script-morph__slot script-morph__slot--to",
+            d: slotPath(b),
+            transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
+          });
+          syl.style.opacity = String(combine * baseOpacity);
+          slotG.appendChild(syl);
+        }
+      } else {
+        const basePath = el("path", {
+          className: "script-morph__slot script-morph__slot--to",
+          d: slotPath(b),
+          transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
+        });
+        basePath.style.opacity = String(baseOpacity);
+        slotG.appendChild(basePath);
+      }
+      const composed = el("path", {
+        className: "script-morph__slot script-morph__slot--to script-morph__composed",
+        d: baseInfo.compose.path,
+        transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
       });
-      pathFrom.style.opacity = changed ? String(1 - t) : "0";
-      const pathTo = el("path", {
+      composed.style.opacity = String(attachT);
+      slotG.appendChild(composed);
+    } else if (markInfo && attachT > 0.001) {
+      // Mark slides away / fades while base absorbs it.
+      const markPath = el("path", {
         className: "script-morph__slot script-morph__slot--to",
         d: slotPath(b),
         transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
       });
-      pathTo.style.opacity = changed ? String(t) : "1";
-      slotG.appendChild(pathFrom);
+      markPath.style.opacity = String(1 - attachT);
+      slotG.appendChild(markPath);
+    } else if (!changed || (needsCombine && combine >= 0.999)) {
+      const pathTo = el("path", {
+        className: changed
+          ? "script-morph__slot script-morph__slot--to"
+          : "script-morph__slot",
+        d: slotPath(displayB),
+        transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
+      });
+      pathTo.style.opacity = "1";
       slotG.appendChild(pathTo);
+    } else if (needsCombine && combine > 0.001) {
+      paintAtomPair(
+        slotG,
+        fromAtoms,
+        toAtoms,
+        atomTs,
+        fromPadX,
+        toPadX,
+        toScale,
+        toDy,
+        1 - combine
+      );
+      const combined = el("path", {
+        className: "script-morph__slot script-morph__slot--to script-morph__composed",
+        d: slotPath(b),
+        transform: `translate(${toPadX}, ${toDy}) scale(${toScale})`,
+      });
+      combined.style.opacity = String(combine);
+      slotG.appendChild(combined);
+    } else {
+      paintAtomPair(
+        slotG,
+        fromAtoms,
+        toAtoms,
+        atomTs,
+        fromPadX,
+        toPadX,
+        toScale,
+        toDy,
+        1
+      );
     }
 
     g.appendChild(slotG);
-    items.push({ slotG, startCellW, endCellW });
+    items.push({ slotG, startCellW, endCellW, skip: false });
   }
 
   let startX = 0;
@@ -148,6 +301,7 @@ export function paintMorph(svg, state) {
     endX += item.endCellW + (visual < n - 1 ? fromGap : 0);
   });
   items.forEach((item) => {
+    if (item.skip || !item.slotG) return;
     item.slotG.setAttribute(
       "transform",
       `translate(${lerp(item.startX, item.endX, prepT)}, 0)`

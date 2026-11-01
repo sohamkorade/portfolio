@@ -13,8 +13,11 @@ export const COMPACT_SCRIPTS = [
 ];
 
 export const MS = {
-  slotMorph: 480,
-  slotGap: 70,
+  atomMorph: 360, // per base/matra unit
+  atomGap: 40, // gap between matras inside one syllable
+  atomCombine: 320, // merge matured atoms into the syllable outline
+  slotMorph: 480, // legacy alias; morph timing uses atomMorph
+  slotGap: 70, // gap between syllable slots
   caseFold: 320,
   settle: 520,
   slotPrep: 520,
@@ -24,6 +27,31 @@ export const MS = {
   joinGap: 220,
   segregate: 80,
 };
+
+const EMPTY_ATOM = {
+  text: "",
+  path: "",
+  points: [],
+  advance: 0,
+  bounds: [0, 0, 0, 0],
+  empty: true,
+};
+
+/** Morph grain: base + matras when present, else the whole slot. */
+export function atomsOf(slot) {
+  if (!slot) return [{ ...EMPTY_ATOM }];
+  if (slot.atoms?.length) return slot.atoms;
+  return [slot];
+}
+
+export function padAtoms(a, b) {
+  const n = Math.max(a.length, b.length, 1);
+  const left = a.slice();
+  const right = b.slice();
+  while (left.length < n) left.push({ ...EMPTY_ATOM });
+  while (right.length < n) right.push({ ...EMPTY_ATOM });
+  return { from: left, to: right, n };
+}
 
 export const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 export const NS = "http://www.w3.org/2000/svg";
