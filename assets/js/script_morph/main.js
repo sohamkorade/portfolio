@@ -37,17 +37,25 @@ async function bootHost(host) {
   let downX = 0;
   let downY = 0;
   let moved = false;
-  label.addEventListener("pointerdown", (e) => {
-    downX = e.clientX;
-    downY = e.clientY;
-    moved = false;
-  });
-  label.addEventListener("pointermove", (e) => {
-    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) moved = true;
-  });
+  const trackPointer = (el) => {
+    el.addEventListener("pointerdown", (e) => {
+      downX = e.clientX;
+      downY = e.clientY;
+      moved = false;
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (Math.hypot(e.clientX - downX, e.clientY - downY) > 6) moved = true;
+    });
+  };
+  trackPointer(label);
 
   const hint = host.querySelector(".script-morph-hint");
-  if (hint) hint.classList.remove("is-hidden");
+  if (hint) {
+    hint.classList.remove("is-hidden");
+    hint.setAttribute("role", "button");
+    hint.setAttribute("aria-label", "Show name in other scripts");
+    trackPointer(hint);
+  }
 
   const activate = async () => {
     try {
@@ -68,6 +76,13 @@ async function bootHost(host) {
       activate();
     }
   });
+  if (hint) {
+    hint.addEventListener("click", (e) => {
+      if (moved) return;
+      e.preventDefault();
+      activate();
+    });
+  }
 }
 
 function boot() {
