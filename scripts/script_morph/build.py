@@ -27,6 +27,7 @@ from fontTools.pens.transformPen import TransformPen
 from fontTools.ttLib import TTFont
 
 ZWNJ = "\u200C"
+DOTTED_CIRCLE = "\u25CC"
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FONTS = Path(__file__).with_name("fonts.yaml")
@@ -128,17 +129,38 @@ def isolate_joining_text(text: str) -> str:
         if i > 0:
             prev = text[i - 1]
             cat = unicodedata.category(ch)
-            # Combining marks / nonspacing stay attached to the previous letter.
             if cat.startswith("M"):
                 out.append(ch)
                 continue
             if ch in (" ", ZWNJ) or prev in (" ", ZWNJ):
                 out.append(ch)
                 continue
-            # Break joining between adjacent letters / digits / symbols in the cell.
             out.append(ZWNJ)
         out.append(ch)
     return "".join(out)
+
+
+def split_atoms(text: str) -> list[str]:
+    """Split a cell into base + combining-mark atoms (Akshar matras=True style).
+
+    Bases (letters, digits, symbols) accumulate; each Mn/Mc mark
+    (matra, virama, anusvāra, …) is emitted as its own atom.
+    """
+    if not text or text.isspace():
+        return [text]
+    atoms: list[str] = []
+    buf = ""
+    for ch in text:
+        if unicodedata.category(ch).startswith("M"):
+            if buf:
+                atoms.append(buf)
+                buf = ""
+            atoms.append(ch)
+        else:
+            buf += ch
+    if buf:
+        atoms.append(buf)
+    return atoms or [text]
 
 
 def shape_text(font_bytes: bytes, face_index: int, text: str, direction: str | None = None):
@@ -205,15 +227,14 @@ def extract_slot(
     text: str,
     direction: str = "ltr",
     features: dict | None = None,
+    skip_dotted_circle: bool = False,
 ) -> dict:
     """Shape `text` and return path + resampled points in a y-up, UPM_TARGET space."""
     if text == "" or text.isspace():
-        # Space advance from font
         font_bytes = font_path.read_bytes()
         face = hb.Face(font_bytes, face_index)
         font = hb.Font(face)
         scale = UPM_TARGET / face.upem
-        # Use space glyph advance if possible
         buf = hb.Buffer()
         buf.add_str(" ")
         buf.guess_segment_properties()
@@ -235,9 +256,9 @@ def extract_slot(
     tt = open_ttfont(font_path, face_index)
     glyph_set = tt.getGlyphSet()
     glyph_order = tt.getGlyphOrder()
+    cmap = tt.getBestCmap() or {}
+    dotted_name = cmap.get(ord(DOTTED_CIRCLE)) if skip_dotted_circle else None
 
-    # Flip y (font y-up → keep y-up but SVG viewBox will flip at render) and scale.
-    # We keep font coordinates scaled; runtime flips for SVG.
     recording = RecordingPen()
     x_cursor = 0.0
     for info, pos in zip(infos, positions):
@@ -246,6 +267,8 @@ def extract_slot(
             x_cursor += pos.x_advance
             continue
         name = glyph_order[gid]
+        if dotted_name and name == dotted_name:
+            continue
         if name not in glyph_set:
             x_cursor += pos.x_advance
             continue
@@ -256,13 +279,11 @@ def extract_slot(
         glyph_set[name].draw(tpen)
         x_cursor += pos.x_advance
 
-    # Flatten for resampling + SVG
     flat = FlattenPen(glyph_set)
     recording.replay(flat)
     if flat._current:
         flat.contours.append(flat._current)
 
-    # Bounds
     bpen = BoundsPen(glyph_set)
     recording.replay(bpen)
     if bpen.bounds:
@@ -272,9 +293,7 @@ def extract_slot(
         xmax = x_cursor * scale
         ymax = UPM_TARGET * 0.8
 
-    # Accurate multi-contour outline for resting glyphs + flubber morph source.
     path = contours_to_svg(flat.contours)
-    # Single-ring resample kept as a lightweight morph fallback (no flubber).
     points = resample_contours(flat.contours, SAMPLE_POINTS)
     advance = x_cursor * scale
 
@@ -287,6 +306,31 @@ def extract_slot(
         "bounds": [round(xmin, 2), round(ymin, 2), round(xmax, 2), round(ymax, 2)],
         "empty": not bool(path),
     }
+
+
+def extract_atoms(
+    font_path: Path,
+    face_index: int,
+    cell: str,
+    direction: str = "ltr",
+) -> list[dict] | None:
+    """Shape matra-level atoms for a cell; None when the cell is a single atom."""
+    parts = split_atoms(cell)
+    if len(parts) <= 1:
+        return None
+    atoms = []
+    for part in parts:
+        mark_only = bool(part) and all(unicodedata.category(ch).startswith("M") for ch in part)
+        outline = extract_slot(
+            font_path,
+            face_index,
+            part,
+            direction=direction,
+            skip_dotted_circle=mark_only,
+        )
+        outline["text"] = part
+        atoms.append(outline)
+    return atoms
 
 
 def build_joined(script: dict, font_path: Path, face_index: int) -> dict:
@@ -332,27 +376,21 @@ def build_phrase(phrase_path: Path, fonts: dict) -> dict:
             )
 
         print(f"  shaping {script['id']}…")
-        # For joining scripts, slot outlines must stay isolated until the join sweep.
+        direction = script.get("dir", "ltr")
         slots = []
         for cell in cells:
-            shaped = (
-                isolate_joining_text(cell) if script.get("join") else cell
-            )
-            slots.append(
-                extract_slot(
-                    font_path,
-                    face_index,
-                    shaped,
-                    direction=script.get("dir", "ltr"),
-                )
-            )
-            # Keep original cell text in metadata (not the ZWNJ-expanded string).
-            slots[-1]["text"] = cell
+            shaped = isolate_joining_text(cell) if script.get("join") else cell
+            slot = extract_slot(font_path, face_index, shaped, direction=direction)
+            slot["text"] = cell
+            atoms = extract_atoms(font_path, face_index, cell, direction=direction)
+            if atoms:
+                slot["atoms"] = atoms
+            slots.append(slot)
         entry = {
             "id": script["id"],
             "label": script["label"],
             "family": script["family"],
-            "dir": script.get("dir", "ltr"),
+            "dir": direction,
             "font": font_id,
             "cells": cells,
             "slots": slots,
@@ -391,7 +429,6 @@ def build_phrase(phrase_path: Path, fonts: dict) -> dict:
                 entry["compose"]["term"] = compose.get("term") or "Cursive joining"
             elif mode == "attach":
                 print(f"  shaping {script['id']} (attach compose)…")
-                direction = script.get("dir", "ltr")
                 for step in compose.get("steps") or []:
                     idxs = list(step["slots"])
                     text = "".join(cells[i] for i in idxs)
@@ -452,7 +489,6 @@ def main():
 
 
 if __name__ == "__main__":
-    # Fix accidental walrus misuse in older draft — keep main clean
     try:
         main()
     except Exception as e:
