@@ -8,6 +8,8 @@
   const SLOT_GAP_MS = 70; // pause between slots
   const CASE_MS = 320; // per-slot case fold
   const SETTLE_MS = 520; // fade boxes + ease into final layout
+  const SLOT_PREP_MS = 520; // pack from-glyphs into to-sized slot cells
+  const SPREAD_MS = 560; // morph slots → isolated tracking before cursive join
   const REVERSE_MS = 1100;
   const JOIN_STEP_MS = 1400; // per-letter combine into cursive (slow)
   const JOIN_GAP_MS = 220;
@@ -72,19 +74,30 @@
     );
   }
 
-  function unionMetrics(a, b) {
-    const ga = a.family === "arabic" ? 120 : 0;
-    const gb = b.family === "arabic" ? 120 : 0;
-    const ma = slotBounds(a, { isolGap: ga });
-    const mb = slotBounds(b, { isolGap: gb });
-    const minY = Math.min(ma.minY, mb.minY);
-    const maxY = Math.max(ma.maxY, mb.maxY);
-    return {
-      minY,
-      maxY,
-      width: Math.max(ma.width, mb.width, 1),
-      height: Math.max(maxY - minY, 1),
-    };
+  /**
+   * Scale + vertical shift so `to` matches `from`'s visual em size during morph.
+   * Keeps the from script from appearing to resize when scripts have different extents.
+   */
+  function morphToFit(from, to) {
+    const fromM = slotBounds(from);
+    const toM = slotBounds(to);
+    const scale = toM.height > 0 ? fromM.height / toM.height : 1;
+    const fromCy = (fromM.minY + fromM.maxY) / 2;
+    const toCy = ((toM.minY + toM.maxY) / 2) * scale;
+    return { scale, dy: fromCy - toCy, fromM, toM };
+  }
+
+  /** True when a slot needs no morph (identical outline / both empty). */
+  function slotsEqual(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.empty && b.empty) return true;
+    const pa = a.path || "";
+    const pb = b.path || "";
+    if (pa || pb) return pa === pb;
+    const ta = a.text != null ? a.text : "";
+    const tb = b.text != null ? b.text : "";
+    return ta === tb && (a.advance || 0) === (b.advance || 0);
   }
 
   class ScriptMorph {
@@ -97,8 +110,54 @@
       this.animating = false;
       this.active = false;
       this.fullscreen = false;
+      this._animToken = 0;
+      this._animTimers = [];
       this._build();
       this._bind();
+    }
+
+    /** Start a new animation generation; invalidates any in-flight work. */
+    _beginAnim() {
+      this._clearAnimTimers();
+      this._animToken += 1;
+      this.animating = true;
+      return this._animToken;
+    }
+
+    /** Abort in-flight morphs so a new user action can take over. */
+    _cancelAnimation() {
+      this._animToken += 1;
+      this.animating = false;
+      this._clearAnimTimers();
+      this._setPhase("");
+    }
+
+    _clearAnimTimers() {
+      this._animTimers.forEach((id) => clearTimeout(id));
+      this._animTimers = [];
+    }
+
+    _still(token) {
+      return this.active && token === this._animToken;
+    }
+
+    /** Token-aware delay; resolves false if cancelled. */
+    _wait(token, ms) {
+      return new Promise((resolve) => {
+        const id = setTimeout(() => {
+          this._animTimers = this._animTimers.filter((t) => t !== id);
+          resolve(this._still(token));
+        }, ms);
+        this._animTimers.push(id);
+      });
+    }
+
+    /** Token-aware rAF; skips callback if cancelled. */
+    _raf(token, fn) {
+      requestAnimationFrame((now) => {
+        if (!this._still(token)) return;
+        fn(now);
+      });
     }
 
     _loadIndex() {
@@ -209,8 +268,8 @@
     deactivate() {
       if (!this.active) return;
       if (this.fullscreen) this.closeFullscreen();
+      this._cancelAnimation();
       this.active = false;
-      this.animating = false;
       this.host.classList.remove("is-active");
       this.label.focus();
     }
@@ -220,14 +279,40 @@
       if (hint) hint.classList.add("is-hidden");
     }
 
+    /** Final settled render for a script (joined when cursive). */
+    _snapScript(scriptId, announce = false) {
+      const script = scriptById(this.data, scriptId);
+      const joined = !!(
+        script &&
+        script.compose &&
+        script.compose.mode === "cursive" &&
+        script.joined
+      );
+      this._renderScript(scriptId, announce, { joined });
+    }
+
     step(delta) {
-      if (!this.active || this.animating) return;
+      if (!this.active) return;
       const next = (this.index + delta + this.carousel.length) % this.carousel.length;
       this.goTo(next);
     }
 
     goTo(nextIndex) {
-      if (this.animating || nextIndex === this.index) return;
+      if (!this.active) return;
+      if (nextIndex === this.index && !this.animating) return;
+
+      // User action wins: abort the in-flight morph and snap to its committed target.
+      if (this.animating) {
+        const committedId = this.carousel[this.index];
+        this._cancelAnimation();
+        this._snapScript(committedId, false);
+        if (nextIndex === this.index) {
+          const committed = scriptById(this.data, committedId);
+          if (committed) this._announce(committed);
+          return;
+        }
+      }
+
       const fromId = this.carousel[this.index];
       const toId = this.carousel[nextIndex];
       this.index = nextIndex;
@@ -314,11 +399,11 @@
         return;
       }
       if (REDUCED) {
-        this._renderScript(toId, true, { joined: to.family === "arabic" });
+        this._snapScript(toId, true);
         return;
       }
 
-      this.animating = true;
+      const token = this._beginAnim();
       const enteringCursive =
         to.compose && to.compose.mode === "cursive";
       const leavingCursive =
@@ -328,7 +413,8 @@
         let morphFrom = from;
         if (from.id === "latin" && from.slots_lower) {
           this._setPhase("Case folding");
-          await this._caseFold(from, /*toLower=*/ true);
+          await this._caseFold(from, /*toLower=*/ true, token);
+          if (!this._still(token)) return;
           morphFrom = { ...from, slots: from.slots_lower };
         }
 
@@ -340,7 +426,8 @@
         }
 
         if (enteringCursive || leavingCursive) {
-          await this._cursiveTransition(morphFrom, morphTo);
+          await this._cursiveTransition(morphFrom, morphTo, token);
+          if (!this._still(token)) return;
         } else {
           this._setPhase("Grapheme correspondence");
           const hops = resolvePath(this.data, fromId, toId);
@@ -348,32 +435,41 @@
             const a = i === 1 ? morphFrom : scriptById(this.data, hops[i - 1]);
             const b =
               i === hops.length - 1 ? morphTo : scriptById(this.data, hops[i]);
-            await this._morphSlots(a, b, false);
+            await this._morphSlots(a, b, false, { settle: false, token });
+            if (!this._still(token)) return;
           }
         }
 
         // Data-driven post-morph composition (anusvāra attach, etc.).
         if (to.compose && to.compose.mode === "attach") {
-          await this._composeAttach(to);
+          await this._composeAttach(to, token);
+          if (!this._still(token)) return;
         }
 
         if (enteringLatin) {
           this._setPhase("Case folding");
-          await this._caseFold(to, /*toLower=*/ false);
+          await this._caseFold(to, /*toLower=*/ false, token);
+          if (!this._still(token)) return;
         }
+
+        // One final metric settle: collapse slot scaffolding into continuous text.
+        await this._settleMetrics(to, token);
+        if (!this._still(token)) return;
 
         this._setPhase("");
         this.root.dataset.script = toId;
         this.root.dataset.dir = to.dir;
         this._announce(to);
       } finally {
-        this.animating = false;
-        this._setPhase("");
+        if (this._animToken === token) {
+          this.animating = false;
+          this._setPhase("");
+        }
       }
     }
 
     /** Animate Latin proper ↔ lowercase slot-by-slot. */
-    _caseFold(script, toLower) {
+    _caseFold(script, toLower, token) {
       if (!script.slots_lower) return Promise.resolve();
       const from = {
         ...script,
@@ -386,95 +482,166 @@
       return this._morphSlots(from, to, false, {
         duration: CASE_MS,
         sameScript: true,
+        settle: false,
+        token,
       });
     }
 
     /**
      * Morph slots one-by-one using crisp dual-path crossfades (no point-cloud artifacts).
+     * Unchanged slots (identical path / both empty) are skipped — no time, no highlight.
      * LTR: left → right. Urdu/reversed: right → left.
      * opts.duration overrides per-slot timing; opts.sameScript softens dual coloring.
+     * opts.settle defaults to false — metric settle runs once at end of _transition.
      */
     _morphSlots(from, to, reversed, opts = {}) {
       return new Promise((resolve) => {
+        const token = opts.token != null ? opts.token : this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
         const n = from.slots.length;
         const fromGap = from.family === "arabic" ? 120 : 0;
         const slotMs = opts.duration || SLOT_MORPH_MS;
+        const doSettle = opts.settle === true;
         const logicalAt = (visual) => (reversed ? n - 1 - visual : visual);
-
-        const visualOrder = [];
-        if (reversed) {
-          for (let v = n - 1; v >= 0; v--) visualOrder.push(v);
-        } else {
-          for (let v = 0; v < n; v++) visualOrder.push(v);
-        }
+        // Fit `to` into `from`'s em so the outgoing script doesn't resize mid-morph.
+        const fit = opts.sameScript
+          ? { scale: 1, dy: 0, fromM: slotBounds(from) }
+          : morphToFit(from, to);
+        const toScale = fit.scale;
+        const toDy = fit.dy;
 
         // Build dual-path slot groups once (accurate outlines).
         const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
         g.classList.add("script-morph__row");
         if (opts.sameScript) g.classList.add("script-morph__row--casefold");
         const groups = [];
+        const progress = new Array(n).fill(0);
+        const visualOrder = [];
+        const boxPad = 28;
         for (let visual = 0; visual < n; visual++) {
           const logical = logicalAt(visual);
           const a = from.slots[logical];
           const b = to.slots[logical];
+          const changed = !slotsEqual(a, b);
           const advA = a.advance || 0;
-          const advB = b.advance || 0;
+          const advB = (b.advance || 0) * toScale;
           // Reserve the wider advance so from/to never spill into neighboring slots.
-          const cellW = Math.max(advA, advB, 1);
+          const endCellW = Math.max(advA, advB, 1);
+          const startCellW = Math.max(advA, 1);
 
           const slotG = document.createElementNS("http://www.w3.org/2000/svg", "g");
           slotG.classList.add("script-morph__slot-pair");
           slotG.dataset.slot = String(logical);
           slotG.dataset.visual = String(visual);
+          if (!changed) slotG.classList.add("is-unchanged");
 
           const ba = a.bounds || [0, 0, advA, 800];
-          const bb = b.bounds || [0, 0, advB, 800];
-          const pad = 28;
-          const by = Math.min(ba[1], bb[1]) - pad;
-          const bh = Math.max(ba[3], bb[3]) - Math.min(ba[1], bb[1]) + pad * 2;
+          const bbRaw = b.bounds || [0, 0, b.advance || 0, 800];
+          const bb = [
+            bbRaw[0] * toScale,
+            bbRaw[1] * toScale + toDy,
+            bbRaw[2] * toScale,
+            bbRaw[3] * toScale + toDy,
+          ];
+          const by = Math.min(ba[1], bb[1]) - boxPad;
+          const bh = Math.max(ba[3], bb[3]) - Math.min(ba[1], bb[1]) + boxPad * 2;
 
           const box = document.createElementNS("http://www.w3.org/2000/svg", "rect");
           box.classList.add("script-morph__slot-box");
-          box.setAttribute("x", String(-pad));
+          box.setAttribute("x", String(-boxPad));
           box.setAttribute("y", String(by));
-          box.setAttribute("width", String(cellW + pad * 2));
+          box.setAttribute("width", String(startCellW + boxPad * 2));
           box.setAttribute("height", String(Math.max(bh, 1)));
           box.setAttribute("rx", "20");
+          box.style.opacity = "0";
 
           const pathFrom = document.createElementNS("http://www.w3.org/2000/svg", "path");
           pathFrom.classList.add("script-morph__slot", "script-morph__slot--from");
           pathFrom.setAttribute("d", a.path || pointsToPath(a.points));
-          // Center each glyph inside the shared cell so different sizes don't collide.
-          pathFrom.setAttribute("transform", `translate(${(cellW - advA) / 2}, 0)`);
-          pathFrom.style.opacity = "1";
+          // Start packed like continuous text; prep animates into centered cells.
+          pathFrom.setAttribute("transform", "translate(0, 0)");
+          pathFrom.style.opacity = changed ? "1" : "0";
 
           const pathTo = document.createElementNS("http://www.w3.org/2000/svg", "path");
           pathTo.classList.add("script-morph__slot", "script-morph__slot--to");
           pathTo.setAttribute("d", b.path || pointsToPath(b.points));
-          pathTo.setAttribute("transform", `translate(${(cellW - advB) / 2}, 0)`);
-          pathTo.style.opacity = "0";
+          const toPadX = (endCellW - advB) / 2;
+          const fromPadX = (endCellW - advA) / 2;
+          pathTo.setAttribute(
+            "transform",
+            `translate(${toPadX}, ${toDy}) scale(${toScale})`
+          );
+          pathTo.style.opacity = changed ? "0" : "1";
 
           slotG.appendChild(box);
           slotG.appendChild(pathFrom);
           slotG.appendChild(pathTo);
           g.appendChild(slotG);
-          groups.push({ slotG, pathFrom, pathTo, box, a, b, visual, logical, cellW });
+          groups.push({
+            slotG,
+            pathFrom,
+            pathTo,
+            box,
+            a,
+            b,
+            visual,
+            logical,
+            changed,
+            advA,
+            advB,
+            startCellW,
+            endCellW,
+            cellW: endCellW,
+            fromPadX,
+            toPadX,
+          });
+          if (changed) {
+            visualOrder.push(visual);
+          } else {
+            progress[visual] = 1;
+          }
         }
+        // Animate changed slots in reading order (RTL when reversed).
+        if (reversed) visualOrder.reverse();
+
         this.svg.replaceChildren(g);
         this.svg.style.transform = "scale(1, -1)";
 
-        // Layout cells by max(from,to) width — no overlap between neighbors.
-        let x = 0;
+        // Start: natural from packing. End: cells sized for max(from, scaled-to).
+        let startX = 0;
+        let endX = 0;
         groups.forEach((item, visual) => {
-          item.fixedX = x;
-          item.slotG.setAttribute("transform", `translate(${x}, 0)`);
-          x += item.cellW + (visual < n - 1 ? fromGap : 0);
+          item.startX = startX;
+          item.endX = endX;
+          item.fixedX = endX;
+          item.slotG.setAttribute("transform", `translate(${startX}, 0)`);
+          startX += item.startCellW + (visual < n - 1 ? fromGap : 0);
+          endX += item.endCellW + (visual < n - 1 ? fromGap : 0);
         });
-        const metrics = unionMetrics(from, to);
-        metrics.width = Math.max(metrics.width, x, 1);
-        setViewBox(this.svg, metrics);
+        const startMetrics = {
+          minY: fit.fromM.minY,
+          maxY: fit.fromM.maxY,
+          height: fit.fromM.height,
+          width: Math.max(fit.fromM.width, startX, 1),
+        };
+        const endMetrics = {
+          minY: fit.fromM.minY,
+          maxY: fit.fromM.maxY,
+          height: fit.fromM.height,
+          width: Math.max(fit.fromM.width, endX, 1),
+        };
+        setViewBox(this.svg, startMetrics);
 
-        const progress = new Array(n).fill(0);
+        const needsSlotPrep = groups.some(
+          (item) =>
+            Math.abs(item.startCellW - item.endCellW) > 0.5 ||
+            Math.abs(item.startX - item.endX) > 0.5 ||
+            item.changed
+        );
+
         let step = 0;
         let stepStarted = performance.now();
 
@@ -482,6 +649,13 @@
           groups.forEach((item, visual) => {
             const t = progress[visual];
             item.slotG.setAttribute("transform", `translate(${item.fixedX}, 0)`);
+            if (!item.changed) {
+              item.pathFrom.style.opacity = "0";
+              item.pathTo.style.opacity = "1";
+              item.box.classList.remove("is-active");
+              item.box.style.opacity = "0";
+              return;
+            }
             item.pathFrom.style.opacity = String(1 - t);
             item.pathTo.style.opacity = String(t);
             const active = visualOrder[step] === visual && t < 1;
@@ -491,102 +665,59 @@
           });
         };
 
-        const settle = () => {
-          this._setPhase("Metric settling");
-          // Keep positions when a compose phase follows (cursive / mark attach).
-          const skipReflow =
-            (to.compose && (to.compose.mode === "cursive" || to.compose.mode === "attach"));
-          const toGap = to.family === "arabic" ? 120 : 0;
-
-          let tx = 0;
-          groups.forEach((item, visual) => {
-            item.startX = item.fixedX;
-            item.startCellW = item.cellW;
-            item.startPad = (item.cellW - (item.b.advance || 0)) / 2;
-            if (skipReflow) {
-              item.endX = item.fixedX;
-              item.endCellW = item.cellW;
-              item.endPad = item.startPad;
-            } else {
-              item.endX = tx;
-              item.endCellW = item.b.advance || 0;
-              item.endPad = 0;
-              tx += item.endCellW + (visual < n - 1 ? toGap : 0);
-            }
-          });
-          const endMetrics = skipReflow
-            ? null
-            : (() => {
-                const m = slotBounds(to, { isolGap: toGap });
-                m.width = Math.max(m.width, tx, 1);
-                return m;
-              })();
-          const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
-          const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
-
+        /** Snap glyphs to the `to` state; keep slot boxes for a later metric settle. */
+        const finishMorph = () => {
           groups.forEach((item) => {
-            item.pathFrom.style.opacity = "0";
+            item.pathFrom.remove();
+            item.pathTo.classList.remove(
+              "script-morph__slot--to",
+              "script-morph__slot--from"
+            );
+            item.pathTo.classList.add("script-morph__slot");
             item.pathTo.style.opacity = "1";
             item.pathTo.classList.add("script-morph__slot--settling");
+            item.pathTo.setAttribute(
+              "transform",
+              `translate(${item.toPadX}, ${toDy}) scale(${toScale})`
+            );
             item.box.classList.remove("is-active");
+            item.box.style.opacity = item.changed ? "0.35" : "0";
+            // Natural (unscaled) advance for the final metric settle.
+            item.slotG.dataset.advance = String(item.b.advance || 0);
+            item.slotG.dataset.morphScale = String(toScale);
+            item.slotG.dataset.morphDy = String(toDy);
+            item.slotG.dataset.morphPad = String(item.toPadX);
           });
-
-          const t0 = performance.now();
-          const settleFrame = (now) => {
-            const t = easeInOut(Math.min(1, (now - t0) / SETTLE_MS));
-            groups.forEach((item) => {
-              const x = item.startX + (item.endX - item.startX) * t;
-              const cellW = item.startCellW + (item.endCellW - item.startCellW) * t;
-              const padX = item.startPad + (item.endPad - item.startPad) * t;
-              item.slotG.setAttribute("transform", `translate(${x}, 0)`);
-              item.pathTo.setAttribute("transform", `translate(${padX}, 0)`);
-              item.box.setAttribute("width", String(cellW + 56));
-              item.box.style.opacity = String(0.35 * (1 - t));
-            });
-            if (endMetrics) {
-              const width = startVB.width + (endMetrics.width - startVB.width) * t;
-              const minY = startVB.minY + (endMetrics.minY - startVB.minY) * t;
-              const height = startVB.height + (endMetrics.height - startVB.height) * t;
-              setViewBox(this.svg, { minY, maxY: minY + height, width, height });
-            }
-
-            if (t < 1) {
-              requestAnimationFrame(settleFrame);
-              return;
-            }
-
-            groups.forEach((item) => {
-              item.box.remove();
-              item.pathFrom.remove();
-              item.pathTo.classList.remove(
-                "script-morph__slot--to",
-                "script-morph__slot--from",
-                "script-morph__slot--settling"
-              );
-              item.pathTo.classList.add("script-morph__slot");
-              item.pathTo.removeAttribute("style");
-              if (skipReflow) {
-                item.pathTo.setAttribute(
-                  "transform",
-                  `translate(${item.endPad}, 0)`
-                );
-                item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
-              } else {
-                item.pathTo.setAttribute("transform", "translate(0, 0)");
-                item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
-              }
-            });
-            g.classList.remove("script-morph__row--casefold");
-            if (endMetrics) setViewBox(this.svg, endMetrics);
+          g.classList.remove("script-morph__row--casefold");
+          if (!this._still(token)) {
             resolve();
-          };
-          requestAnimationFrame(settleFrame);
+            return;
+          }
+          if (doSettle) {
+            this._settleMetrics(to, token).then(resolve);
+          } else {
+            resolve();
+          }
         };
 
-        const frame = (now) => {
+        const startMorphFrames = () => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
+          step = 0;
+          stepStarted = performance.now();
+          this._raf(token, morphFrame);
+        };
+
+        const morphFrame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
           if (step >= visualOrder.length) {
             paint();
-            settle();
+            finishMorph();
             return;
           }
           const visual = visualOrder[step];
@@ -594,28 +725,415 @@
           progress[visual] = easeInOut(local);
           paint();
           if (local < 1) {
-            requestAnimationFrame(frame);
+            this._raf(token, morphFrame);
             return;
           }
           progress[visual] = 1;
           step += 1;
           if (step >= visualOrder.length) {
             paint();
-            settle();
+            finishMorph();
             return;
           }
-          setTimeout(() => {
+          this._wait(token, SLOT_GAP_MS).then((ok) => {
+            if (!ok) {
+              resolve();
+              return;
+            }
             stepStarted = performance.now();
-            requestAnimationFrame(frame);
-          }, SLOT_GAP_MS);
+            this._raf(token, morphFrame);
+          });
         };
-        requestAnimationFrame(frame);
+
+        /** Ease from continuous packing into to-sized slot cells, then morph. */
+        const runSlotPrep = () => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
+          if (!needsSlotPrep) {
+            groups.forEach((item) => {
+              item.fixedX = item.endX;
+              item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
+              item.pathFrom.setAttribute(
+                "transform",
+                `translate(${item.fromPadX}, 0)`
+              );
+              item.box.setAttribute(
+                "width",
+                String(item.endCellW + boxPad * 2)
+              );
+              if (item.changed) item.box.style.opacity = "0.35";
+            });
+            setViewBox(this.svg, endMetrics);
+            startMorphFrames();
+            return;
+          }
+
+          const prevPhase = this.phaseEl && !this.phaseEl.hidden
+            ? this.phaseEl.textContent
+            : "";
+          this._setPhase("Slot alignment");
+          const t0 = performance.now();
+          const prepFrame = (now) => {
+            if (!this._still(token)) {
+              resolve();
+              return;
+            }
+            const t = easeInOut(Math.min(1, (now - t0) / SLOT_PREP_MS));
+            groups.forEach((item) => {
+              const x = item.startX + (item.endX - item.startX) * t;
+              const cellW =
+                item.startCellW + (item.endCellW - item.startCellW) * t;
+              const fromPad = item.fromPadX * t;
+              item.fixedX = x;
+              item.slotG.setAttribute("transform", `translate(${x}, 0)`);
+              item.pathFrom.setAttribute("transform", `translate(${fromPad}, 0)`);
+              // Keep invisible `to` glyph centered in the growing cell.
+              const toPad = (cellW - item.advB) / 2;
+              item.pathTo.setAttribute(
+                "transform",
+                `translate(${toPad}, ${toDy}) scale(${toScale})`
+              );
+              item.box.setAttribute("width", String(cellW + boxPad * 2));
+              if (item.changed) {
+                item.box.style.opacity = String(0.35 * t);
+              }
+            });
+            const width =
+              startMetrics.width + (endMetrics.width - startMetrics.width) * t;
+            setViewBox(this.svg, {
+              minY: endMetrics.minY,
+              maxY: endMetrics.maxY,
+              height: endMetrics.height,
+              width,
+            });
+            if (t < 1) {
+              this._raf(token, prepFrame);
+              return;
+            }
+            groups.forEach((item) => {
+              item.fixedX = item.endX;
+              item.toPadX = (item.endCellW - item.advB) / 2;
+              item.pathFrom.setAttribute(
+                "transform",
+                `translate(${item.fromPadX}, 0)`
+              );
+              item.pathTo.setAttribute(
+                "transform",
+                `translate(${item.toPadX}, ${toDy}) scale(${toScale})`
+              );
+              if (item.changed) item.box.style.opacity = "0.35";
+            });
+            setViewBox(this.svg, endMetrics);
+            if (!this._still(token)) {
+              resolve();
+              return;
+            }
+            this._setPhase(prevPhase || "Grapheme correspondence");
+            startMorphFrames();
+          };
+          this._raf(token, prepFrame);
+        };
+
+        runSlotPrep();
+      });
+    }
+
+    /**
+     * Final phase: fade slot scaffolding and ease glyphs into continuous metrics.
+     * Skips when there is nothing left to collapse (no duplicate motion).
+     */
+    _settleMetrics(script, token) {
+      if (!script) return Promise.resolve();
+      if (token == null) token = this._animToken;
+      if (!this._still(token)) return Promise.resolve();
+
+      // Cursive end-state: tighten onto the joined outline.
+      if (
+        script.compose &&
+        script.compose.mode === "cursive" &&
+        script.joined &&
+        this.svg.querySelector(".script-morph__joined")
+      ) {
+        return this._settleJoined(script, token);
+      }
+
+      const row = this.svg.querySelector(".script-morph__row");
+      if (!row) return Promise.resolve();
+
+      const pairs = [...row.querySelectorAll(".script-morph__slot-pair")];
+      if (!pairs.length) return Promise.resolve();
+
+      const items = pairs
+        .map((slotG) => {
+          const logical = parseInt(slotG.dataset.slot, 10);
+          const path =
+            slotG.querySelector("path.script-morph__slot") ||
+            slotG.querySelector("path");
+          const box = slotG.querySelector(".script-morph__slot-box");
+          const gm = /translate\(([-\d.]+)/.exec(slotG.getAttribute("transform") || "");
+          const startX = gm ? parseFloat(gm[1]) : 0;
+          const startScale = parseFloat(slotG.dataset.morphScale || "1") || 1;
+          const startDy = parseFloat(slotG.dataset.morphDy || "0") || 0;
+          let startPad = parseFloat(slotG.dataset.morphPad || "");
+          if (!isFinite(startPad) && path) {
+            const pm = /translate\(([-\d.]+)/.exec(path.getAttribute("transform") || "");
+            startPad = pm ? parseFloat(pm[1]) : 0;
+          }
+          if (!isFinite(startPad)) startPad = 0;
+          let advance = parseFloat(slotG.dataset.advance || "");
+          if (!isFinite(advance)) {
+            const slot = script.slots[logical];
+            advance = slot ? slot.advance || 0 : 0;
+          }
+          const boxW = box ? parseFloat(box.getAttribute("width") || "0") : 0;
+          const startCellW =
+            boxW > 0 ? Math.max(boxW - 56, advance * startScale) : Math.max(advance * startScale, 1);
+          return {
+            slotG,
+            path,
+            box,
+            logical,
+            startX,
+            startPad,
+            startCellW,
+            startScale,
+            startDy,
+            advance,
+          };
+        })
+        .sort((a, b) => a.startX - b.startX || a.logical - b.logical);
+
+      let tx = 0;
+      items.forEach((item) => {
+        item.endX = tx;
+        item.endPad = 0;
+        item.endCellW = item.advance || 0;
+        tx += item.endCellW;
+      });
+
+      const moved = items.some(
+        (item) =>
+          Math.abs(item.startX - item.endX) > 0.5 ||
+          Math.abs(item.startPad - item.endPad) > 0.5 ||
+          Math.abs(item.startCellW - item.endCellW) > 0.5 ||
+          Math.abs(item.startScale - 1) > 0.001 ||
+          Math.abs(item.startDy) > 0.5
+      );
+      const visibleBoxes = items.filter((item) => {
+        if (!item.box || !item.box.isConnected) return false;
+        const op = item.box.style.opacity;
+        return op === "" || parseFloat(op) > 0.02;
+      });
+      if (!moved && !visibleBoxes.length) {
+        items.forEach((item) => {
+          if (item.box) item.box.remove();
+          if (item.path) {
+            item.path.setAttribute("transform", "translate(0, 0)");
+            item.path.classList.remove("script-morph__slot--settling");
+          }
+          item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
+        });
+        return Promise.resolve();
+      }
+
+      return new Promise((resolve) => {
+        this._setPhase("Metric settling");
+
+        let minY = Infinity;
+        let maxY = -Infinity;
+        items.forEach((item) => {
+          const db = item.slotG.dataset.bounds;
+          const slot = script.slots[item.logical];
+          const bounds = db
+            ? db.split(",").map(Number)
+            : slot && slot.bounds
+              ? slot.bounds
+              : null;
+          if (bounds && bounds.length >= 4) {
+            minY = Math.min(minY, bounds[1]);
+            maxY = Math.max(maxY, bounds[3]);
+          }
+        });
+        if (!isFinite(minY)) {
+          const m = slotBounds(script);
+          minY = m.minY;
+          maxY = m.maxY;
+        }
+        const endMetrics = {
+          minY,
+          maxY,
+          width: Math.max(tx, 1),
+          height: Math.max(maxY - minY, 1),
+        };
+
+        const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
+        const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
+
+        items.forEach((item) => {
+          if (item.path) item.path.classList.add("script-morph__slot--settling");
+          if (item.box) item.box.classList.remove("is-active");
+        });
+
+        const t0 = performance.now();
+        const settleFrame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
+          const t = easeInOut(Math.min(1, (now - t0) / SETTLE_MS));
+          items.forEach((item) => {
+            const x = item.startX + (item.endX - item.startX) * t;
+            const cellW = item.startCellW + (item.endCellW - item.startCellW) * t;
+            const padX = item.startPad + (item.endPad - item.startPad) * t;
+            const scale = item.startScale + (1 - item.startScale) * t;
+            const dy = item.startDy * (1 - t);
+            item.slotG.setAttribute("transform", `translate(${x}, 0)`);
+            if (item.path) {
+              item.path.setAttribute(
+                "transform",
+                Math.abs(scale - 1) < 0.0005 && Math.abs(dy) < 0.05
+                  ? `translate(${padX}, 0)`
+                  : `translate(${padX}, ${dy}) scale(${scale})`
+              );
+            }
+            if (item.box) {
+              item.box.setAttribute("width", String(cellW + 56));
+              item.box.style.opacity = String(0.35 * (1 - t));
+            }
+          });
+          const width = startVB.width + (endMetrics.width - startVB.width) * t;
+          const minYv = startVB.minY + (endMetrics.minY - startVB.minY) * t;
+          const height = startVB.height + (endMetrics.height - startVB.height) * t;
+          setViewBox(this.svg, { minY: minYv, maxY: minYv + height, width, height });
+
+          if (t < 1) {
+            this._raf(token, settleFrame);
+            return;
+          }
+
+          items.forEach((item) => {
+            if (item.box) item.box.remove();
+            if (item.path) {
+              item.path.setAttribute("transform", "translate(0, 0)");
+              item.path.classList.remove(
+                "script-morph__slot--to",
+                "script-morph__slot--from",
+                "script-morph__slot--settling"
+              );
+              item.path.classList.add("script-morph__slot");
+              item.path.removeAttribute("style");
+            }
+            item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
+            item.slotG.classList.remove("is-unchanged");
+            delete item.slotG.dataset.morphScale;
+            delete item.slotG.dataset.morphDy;
+            delete item.slotG.dataset.morphPad;
+          });
+          setViewBox(this.svg, endMetrics);
+          resolve();
+        };
+        this._raf(token, settleFrame);
+      });
+    }
+
+    /** After cursive joining: drop isol scaffolding and ease onto the joined word. */
+    _settleJoined(script, token) {
+      return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
+        const joined = script.joined;
+        if (!joined || !joined.path) {
+          this._renderScript(script.id, false, { joined: true });
+          resolve();
+          return;
+        }
+
+        const row = this.svg.querySelector(".script-morph__row");
+        const joinedPaths = [
+          ...this.svg.querySelectorAll(".script-morph__joined"),
+        ].filter((el) => parseFloat(el.style.opacity || "1") > 0.5);
+        const finalJoined =
+          joinedPaths[joinedPaths.length - 1] ||
+          this.svg.querySelector(".script-morph__joined");
+        if (!finalJoined || !row) {
+          this._renderScript(script.id, false, { joined: true });
+          resolve();
+          return;
+        }
+
+        // Already a single clean joined render — nothing to animate.
+        const isol = [...row.querySelectorAll(".script-morph__slot")];
+        const hasIsol = isol.some((el) => parseFloat(el.style.opacity || "1") > 0.05);
+        const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
+        const endMetrics = {
+          minY: joined.bounds[1],
+          maxY: joined.bounds[3],
+          width: Math.max(joined.advance || joined.bounds[2] - joined.bounds[0], 1),
+          height: Math.max(joined.bounds[3] - joined.bounds[1], 1),
+        };
+        const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
+        const needsVB =
+          Math.abs(startVB.width - endMetrics.width) > 1 ||
+          Math.abs(startVB.height - endMetrics.height) > 1 ||
+          Math.abs(startVB.minY - endMetrics.minY) > 1;
+
+        if (!hasIsol && !needsVB) {
+          this._renderScript(script.id, false, { joined: true });
+          resolve();
+          return;
+        }
+
+        this._setPhase("Metric settling");
+        const jm = /translate\(([-\d.]+)/.exec(finalJoined.getAttribute("transform") || "");
+        const startX = jm ? parseFloat(jm[1]) : 0;
+        const endX = 0;
+
+        const t0 = performance.now();
+        const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
+          const t = easeInOut(Math.min(1, (now - t0) / SETTLE_MS));
+          isol.forEach((el) => {
+            el.style.opacity = String(
+              Math.max(0, parseFloat(el.style.opacity || "1") * (1 - t))
+            );
+          });
+          // Keep secondary joined fades out; primary eases to x=0.
+          finalJoined.style.opacity = "1";
+          finalJoined.setAttribute(
+            "transform",
+            `translate(${startX + (endX - startX) * t}, 0)`
+          );
+          const width = startVB.width + (endMetrics.width - startVB.width) * t;
+          const minY = startVB.minY + (endMetrics.minY - startVB.minY) * t;
+          const height = startVB.height + (endMetrics.height - startVB.height) * t;
+          setViewBox(this.svg, { minY, maxY: minY + height, width, height });
+          if (t < 1) {
+            this._raf(token, frame);
+            return;
+          }
+          this._renderScript(script.id, false, { joined: true });
+          resolve();
+        };
+        this._raf(token, frame);
       });
     }
 
     /** Animate characters swapping into reversed string order (no glyph flip). */
-    _reverseOrder(script, duration) {
+    _reverseOrder(script, duration, token) {
       return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
         this._renderScript(script.id, false, { joined: false, reversed: false });
         const paths = [...this.svg.querySelectorAll(".script-morph__slot")];
         const n = script.slots.length;
@@ -635,27 +1153,36 @@
         const t0 = performance.now();
 
         const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
           const t = easeInOut(Math.min(1, (now - t0) / duration));
           paths.forEach((el) => {
             const i = parseInt(el.dataset.slot, 10);
             const xNow = fromXs[i] + (toXs[i] - fromXs[i]) * t;
             el.setAttribute("transform", `translate(${xNow}, 0)`);
           });
-          if (t < 1) requestAnimationFrame(frame);
+          if (t < 1) this._raf(token, frame);
           else {
             // Rebuild reversed without touching camera if locked
             this._renderScript(script.id, false, { joined: false, reversed: true });
             resolve();
           }
         };
-        requestAnimationFrame(frame);
+        this._raf(token, frame);
         void width;
       });
     }
 
     /** Un-reverse: RTL visual order back to LTR logical order. */
-    _unreverseOrder(script, duration) {
+    _unreverseOrder(script, duration, token) {
       return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
         this._renderScript(script.id, false, { joined: false, reversed: true });
         const paths = [...this.svg.querySelectorAll(".script-morph__slot")];
         const n = script.slots.length;
@@ -673,20 +1200,215 @@
         const t0 = performance.now();
 
         const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
           const t = easeInOut(Math.min(1, (now - t0) / duration));
           paths.forEach((el) => {
             const i = parseInt(el.dataset.slot, 10);
             const xNow = fromXs[i] + (ltrXs[i] - fromXs[i]) * t;
             el.setAttribute("transform", `translate(${xNow}, 0)`);
           });
-          if (t < 1) requestAnimationFrame(frame);
+          if (t < 1) this._raf(token, frame);
           else {
             this._renderScript(script.id, false, { joined: false, reversed: false });
             resolve();
           }
         };
-        requestAnimationFrame(frame);
+        this._raf(token, frame);
       });
+    }
+
+    /**
+     * Animate post-morph slot scaffolding into the spaced isolated layout
+     * used by cursive joining (no instant jump).
+     */
+    _spreadForCursiveJoin(script, token) {
+      return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
+        const n = script.slots.length;
+        const isolGap = 120;
+        const endXs = new Array(n);
+        let xCursor = 0;
+        for (let logical = n - 1; logical >= 0; logical--) {
+          endXs[logical] = xCursor;
+          xCursor += (script.slots[logical].advance || 0) + isolGap;
+        }
+        const endMetrics = slotBounds(script);
+        endMetrics.width = Math.max(endMetrics.width, xCursor, 1);
+
+        const row = this.svg.querySelector(".script-morph__row");
+        const pairs = row
+          ? [...row.querySelectorAll(".script-morph__slot-pair")]
+          : [];
+
+        // Nothing to interpolate — drop straight into isol render.
+        if (!pairs.length) {
+          this._renderIsolatedForJoin(script);
+          resolve();
+          return;
+        }
+
+        const items = pairs
+          .map((slotG) => {
+            const logical = parseInt(slotG.dataset.slot, 10);
+            const path =
+              slotG.querySelector("path.script-morph__slot") ||
+              slotG.querySelector("path");
+            const box = slotG.querySelector(".script-morph__slot-box");
+            const gm = /translate\(([-\d.]+)/.exec(
+              slotG.getAttribute("transform") || ""
+            );
+            const startX = gm ? parseFloat(gm[1]) : 0;
+            const startScale = parseFloat(slotG.dataset.morphScale || "1") || 1;
+            const startDy = parseFloat(slotG.dataset.morphDy || "0") || 0;
+            let startPad = parseFloat(slotG.dataset.morphPad || "");
+            if (!isFinite(startPad) && path) {
+              const pm = /translate\(([-\d.]+)/.exec(
+                path.getAttribute("transform") || ""
+              );
+              startPad = pm ? parseFloat(pm[1]) : 0;
+            }
+            if (!isFinite(startPad)) startPad = 0;
+            const advance = script.slots[logical]
+              ? script.slots[logical].advance || 0
+              : 0;
+            const boxW = box ? parseFloat(box.getAttribute("width") || "0") : 0;
+            const startCellW =
+              boxW > 0
+                ? Math.max(boxW - 56, advance * startScale)
+                : Math.max(advance * startScale, 1);
+            return {
+              slotG,
+              path,
+              box,
+              logical,
+              startX,
+              startPad,
+              startCellW,
+              startScale,
+              startDy,
+              endX: endXs[logical] || 0,
+              endPad: 0,
+              endCellW: advance,
+              advance,
+            };
+          })
+          .sort((a, b) => a.startX - b.startX || a.logical - b.logical);
+
+        const moved = items.some(
+          (item) =>
+            Math.abs(item.startX - item.endX) > 0.5 ||
+            Math.abs(item.startPad) > 0.5 ||
+            Math.abs(item.startCellW - item.endCellW) > 0.5 ||
+            Math.abs(item.startScale - 1) > 0.001 ||
+            Math.abs(item.startDy) > 0.5
+        );
+        const hasBoxes = items.some(
+          (item) =>
+            item.box &&
+            item.box.isConnected &&
+            (item.box.style.opacity === "" ||
+              parseFloat(item.box.style.opacity) > 0.02)
+        );
+
+        if (!moved && !hasBoxes) {
+          this._renderIsolatedForJoin(script);
+          resolve();
+          return;
+        }
+
+        const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1")
+          .split(/\s+/)
+          .map(Number);
+        const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
+
+        items.forEach((item) => {
+          if (item.path) {
+            item.path.classList.add(
+              "script-morph__slot--unjoined",
+              "script-morph__slot--settling"
+            );
+          }
+          if (item.box) item.box.classList.remove("is-active");
+        });
+        if (row) row.classList.add("script-morph__row--joining");
+
+        const t0 = performance.now();
+        const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
+          const t = easeInOut(Math.min(1, (now - t0) / SPREAD_MS));
+          items.forEach((item) => {
+            const x = item.startX + (item.endX - item.startX) * t;
+            const cellW =
+              item.startCellW + (item.endCellW - item.startCellW) * t;
+            const padX = item.startPad * (1 - t);
+            const scale = item.startScale + (1 - item.startScale) * t;
+            const dy = item.startDy * (1 - t);
+            item.slotG.setAttribute("transform", `translate(${x}, 0)`);
+            if (item.path) {
+              item.path.setAttribute(
+                "transform",
+                Math.abs(scale - 1) < 0.0005 && Math.abs(dy) < 0.05
+                  ? `translate(${padX}, 0)`
+                  : `translate(${padX}, ${dy}) scale(${scale})`
+              );
+            }
+            if (item.box) {
+              item.box.setAttribute("width", String(cellW + 56));
+              item.box.style.opacity = String(0.35 * (1 - t));
+            }
+          });
+          const width = startVB.width + (endMetrics.width - startVB.width) * t;
+          const minY = startVB.minY + (endMetrics.minY - startVB.minY) * t;
+          const height =
+            startVB.height + (endMetrics.height - startVB.height) * t;
+          setViewBox(this.svg, {
+            minY,
+            maxY: minY + height,
+            width,
+            height,
+          });
+          if (t < 1) {
+            this._raf(token, frame);
+            return;
+          }
+          // Positions now match isol layout — rebuild clean join DOM in place.
+          this._renderIsolatedForJoin(script);
+          resolve();
+        };
+        this._raf(token, frame);
+      });
+    }
+
+    /** Build the spaced isolated letter row join will absorb from. */
+    _renderIsolatedForJoin(script) {
+      const n = script.slots.length;
+      const isolGap = 120;
+      const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.classList.add("script-morph__row", "script-morph__row--joining");
+      let xCursor = 0;
+      for (let logical = n - 1; logical >= 0; logical--) {
+        const slot = script.slots[logical];
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.classList.add("script-morph__slot", "script-morph__slot--unjoined");
+        path.dataset.slot = String(logical);
+        path.setAttribute("d", slot.path || pointsToPath(slot.points));
+        path.setAttribute("transform", `translate(${xCursor}, 0)`);
+        g.appendChild(path);
+        xCursor += (slot.advance || 0) + isolGap;
+      }
+      this.svg.replaceChildren(g);
+      this.svg.style.transform = "scale(1, -1)";
+      setViewBox(this.svg, slotBounds(script));
     }
 
     /**
@@ -694,8 +1416,13 @@
      * Each new joined form is centered on the midpoint of the two pieces
      * being combined — other letters stay put (gaps can remain).
      */
-    _joinOneByOne(script) {
+    _joinOneByOne(script, token) {
       return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
         const steps = script.join_steps || (script.joined ? [script.joined] : []);
         if (!steps.length) {
           resolve();
@@ -704,31 +1431,59 @@
 
         const n = script.slots.length;
         const isolGap = 120;
-        const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-        g.classList.add("script-morph__row");
 
-        // Fixed absolute layout for every isolated letter (visual L→R = logical n-1…0).
-        const isol = [];
-        let xCursor = 0;
-        for (let logical = n - 1; logical >= 0; logical--) {
-          const slot = script.slots[logical];
-          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          path.classList.add("script-morph__slot");
-          path.dataset.slot = String(logical);
-          path.setAttribute("d", slot.path || pointsToPath(slot.points));
-          const x = xCursor;
-          const adv = slot.advance || 0;
-          path.setAttribute("transform", `translate(${x}, 0)`);
-          g.appendChild(path);
-          isol.push({
-            path,
-            slot,
-            logical,
-            x,
-            advance: adv,
-            center: x + adv / 2,
-          });
-          xCursor += adv + isolGap;
+        // Prefer continuing from the already-spread isol row.
+        let g = this.svg.querySelector(".script-morph__row--joining");
+        let isol = [];
+        if (g) {
+          const paths = [...g.querySelectorAll(".script-morph__slot--unjoined")];
+          if (paths.length === n) {
+            let xCursor = 0;
+            for (let logical = n - 1; logical >= 0; logical--) {
+              const slot = script.slots[logical];
+              const path = paths.find(
+                (p) => parseInt(p.dataset.slot, 10) === logical
+              );
+              if (!path) {
+                isol = [];
+                break;
+              }
+              const adv = slot.advance || 0;
+              const x = xCursor;
+              path.setAttribute("transform", `translate(${x}, 0)`);
+              path.style.opacity = "1";
+              isol.push({
+                path,
+                slot,
+                logical,
+                x,
+                advance: adv,
+                center: x + adv / 2,
+              });
+              xCursor += adv + isolGap;
+            }
+          }
+        }
+
+        if (!isol.length) {
+          this._renderIsolatedForJoin(script);
+          g = this.svg.querySelector(".script-morph__row--joining");
+          isol = [];
+          let xCursor = 0;
+          for (let logical = n - 1; logical >= 0; logical--) {
+            const slot = script.slots[logical];
+            const path = g.querySelector(`[data-slot="${logical}"]`);
+            const adv = slot.advance || 0;
+            isol.push({
+              path,
+              slot,
+              logical,
+              x: xCursor,
+              advance: adv,
+              center: xCursor + adv / 2,
+            });
+            xCursor += adv + isolGap;
+          }
         }
 
         const joinedA = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -739,7 +1494,6 @@
         joinedB.style.opacity = "0";
         g.appendChild(joinedA);
         g.appendChild(joinedB);
-        this.svg.replaceChildren(g);
         this.svg.style.transform = "scale(1, -1)";
 
         // Freeze the wide isolated frame for the whole combine — no recentering.
@@ -803,6 +1557,10 @@
         let step = 0;
         let stepStarted = performance.now();
         const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
           if (step >= n) {
             paint(n, 1);
             resolve();
@@ -811,7 +1569,7 @@
           const local = Math.min(1, Math.max(0, (now - stepStarted) / JOIN_STEP_MS));
           paint(step, easeInOut(local));
           if (local < 1) {
-            requestAnimationFrame(frame);
+            this._raf(token, frame);
             return;
           }
           paint(step, 1);
@@ -820,47 +1578,63 @@
             resolve();
             return;
           }
-          setTimeout(() => {
+          this._wait(token, JOIN_GAP_MS).then((ok) => {
+            if (!ok) {
+              resolve();
+              return;
+            }
             stepStarted = performance.now();
-            requestAnimationFrame(frame);
-          }, JOIN_GAP_MS);
+            this._raf(token, frame);
+          });
         };
-        requestAnimationFrame(frame);
+        this._raf(token, frame);
       });
     }
 
-    async _cursiveTransition(from, to) {
+    async _cursiveTransition(from, to, token) {
       const entering = to.compose && to.compose.mode === "cursive";
       if (entering) {
         this._setPhase("Reading-order reversal");
-        await this._reverseOrder(from, REVERSE_MS);
+        await this._reverseOrder(from, REVERSE_MS, token);
+        if (!this._still(token)) return;
         this._setPhase("Grapheme correspondence");
-        await this._morphSlots(from, to, true);
+        await this._morphSlots(from, to, true, { settle: false, token });
+        if (!this._still(token)) return;
+        this._setPhase("Isolation spacing");
+        await this._spreadForCursiveJoin(to, token);
+        if (!this._still(token)) return;
         this._setPhase(to.compose.term || "Cursive joining");
-        await this._joinOneByOne(to);
+        await this._joinOneByOne(to, token);
       } else {
         this._setPhase("Cursive segregation");
         this._renderScript(from.id, false, { joined: false, reversed: true });
         this._setPhase("Grapheme correspondence");
-        await this._morphSlots(from, to, true);
+        await this._morphSlots(from, to, true, { settle: false, token });
+        if (!this._still(token)) return;
         this._setPhase("Reading-order reversal");
-        await this._unreverseOrder(to, REVERSE_MS);
+        await this._unreverseOrder(to, REVERSE_MS, token);
       }
     }
 
     /**
      * Data-driven mark attachment (anusvāra, pulli, …): merge slot pairs in place.
      */
-    async _composeAttach(script) {
+    async _composeAttach(script, token) {
       const steps = (script.compose && script.compose.steps) || [];
       for (const step of steps) {
+        if (!this._still(token)) return;
         this._setPhase(step.term || script.compose.term || "Mark attachment");
-        await this._attachMerge(script, step);
+        await this._attachMerge(script, step, token);
       }
     }
 
-    _attachMerge(script, step) {
+    _attachMerge(script, step, token) {
       return new Promise((resolve) => {
+        if (token == null) token = this._animToken;
+        if (!this._still(token)) {
+          resolve();
+          return;
+        }
         const idxs = step.slots || [];
         if (idxs.length < 2 || !step.path) {
           resolve();
@@ -892,18 +1666,30 @@
         const markM = /translate\(([-\d.]+)/.exec(markG.getAttribute("transform") || "");
         const baseX = baseM ? parseFloat(baseM[1]) : 0;
         const markX = markM ? parseFloat(markM[1]) : 0;
+        // Keep the morph-time size match so attach doesn't pop to a different em.
+        const scale = parseFloat(baseG.dataset.morphScale || "1") || 1;
+        const dy = parseFloat(baseG.dataset.morphDy || "0") || 0;
+        const pad = parseFloat(baseG.dataset.morphPad || "0") || 0;
+        const fitted = (px, py) =>
+          Math.abs(scale - 1) < 0.0005 && Math.abs(dy) < 0.05
+            ? `translate(${px}, 0)`
+            : `translate(${px}, ${py}) scale(${scale})`;
 
         const combined = document.createElementNS("http://www.w3.org/2000/svg", "path");
         combined.classList.add("script-morph__slot", "script-morph__composed");
         combined.setAttribute("d", step.path);
         combined.style.opacity = "0";
-        // Sit on the base slot's origin (mark attaches to base).
-        combined.setAttribute("transform", `translate(${baseX}, 0)`);
+        // Sit on the base slot (still in from-fitted space until metric settle).
+        combined.setAttribute("transform", fitted(baseX + pad, dy));
         row.appendChild(combined);
 
         const t0 = performance.now();
         const dur = JOIN_STEP_MS;
         const frame = (now) => {
+          if (!this._still(token)) {
+            resolve();
+            return;
+          }
           const t = easeInOut(Math.min(1, (now - t0) / dur));
           if (basePath) basePath.style.opacity = String(1 - t);
           if (markPath) markPath.style.opacity = String(1 - t);
@@ -912,8 +1698,9 @@
           // Optional: ease mark toward base while fading
           const x = markX + (baseX - markX) * t;
           markG.setAttribute("transform", `translate(${x}, 0)`);
+          combined.setAttribute("transform", fitted(baseX + pad, dy));
           if (t < 1) {
-            requestAnimationFrame(frame);
+            this._raf(token, frame);
             return;
           }
           markG.remove();
@@ -922,11 +1709,14 @@
           // Keep composed glyph in the base group for stable slot indexing.
           baseG.appendChild(combined);
           combined.removeAttribute("style");
-          combined.setAttribute("transform", "translate(0, 0)");
+          combined.setAttribute("transform", fitted(pad, dy));
           baseG.setAttribute("transform", `translate(${baseX}, 0)`);
+          baseG.dataset.advance = String(step.advance || 0);
+          baseG.dataset.morphPad = String(pad);
+          if (step.bounds) baseG.dataset.bounds = step.bounds.join(",");
           resolve();
         };
-        requestAnimationFrame(frame);
+        this._raf(token, frame);
       });
     }
 

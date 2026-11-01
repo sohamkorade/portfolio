@@ -153,6 +153,15 @@
   fill: var(--sm-fg);
 }
 
+/* Cursive join: isolated letters vs already-joined cluster */
+.script-morph__row--joining .script-morph__slot--unjoined {
+  fill: var(--sm-morph-from);
+}
+
+.script-morph__row--joining .script-morph__joined {
+  fill: var(--sm-morph-to);
+}
+
 .script-morph__slot-box {
   fill: color-mix(in srgb, var(--sm-slot-box) 12%, transparent);
   stroke: var(--sm-slot-box);
