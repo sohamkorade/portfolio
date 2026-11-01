@@ -6,15 +6,15 @@ export function buildWidget(accessibleName) {
   root.setAttribute("role", "group");
   root.setAttribute("aria-label", accessibleName);
   root.innerHTML = `
-    <button type="button" class="script-morph__btn script-morph__btn--prev" aria-label="Previous script">‹</button>
-    <div class="script-morph__stage" tabindex="0">
+    <button type="button" class="script-morph__btn script-morph__btn--prev" aria-label="Previous script" title="Previous script">‹</button>
+    <div class="script-morph__stage" tabindex="0" title="Script outline">
       <svg class="script-morph__svg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
       <span class="script-morph__live sr-only" aria-live="polite"></span>
     </div>
-    <button type="button" class="script-morph__btn script-morph__btn--next" aria-label="Next script">›</button>
+    <button type="button" class="script-morph__btn script-morph__btn--next" aria-label="Next script" title="Next script">›</button>
     <span class="script-morph__script-name" aria-live="polite"></span>
-    <button type="button" class="script-morph__btn script-morph__btn--fullscreen" aria-label="Expand script morph">⛶</button>
-    <button type="button" class="script-morph__btn script-morph__btn--exit" aria-label="Close script morph">×</button>
+    <button type="button" class="script-morph__btn script-morph__btn--fullscreen" aria-label="Expand script morph" title="Expand fullscreen">⛶</button>
+    <button type="button" class="script-morph__btn script-morph__btn--exit" aria-label="Close script morph" title="Close">×</button>
     <span class="script-morph__phase" aria-live="polite" hidden></span>
   `;
   return {
@@ -41,15 +41,15 @@ export function buildOverlay(carousel, data) {
     })
     .join("");
   overlay.innerHTML = `
-    <button type="button" class="script-morph-overlay__close" aria-label="Close fullscreen">×</button>
+    <button type="button" class="script-morph-overlay__close" aria-label="Close fullscreen" title="Close fullscreen">×</button>
     <div class="script-morph-overlay__main">
       <div class="script-morph-overlay__stage"></div>
       <div class="script-morph__transport">
-        <button type="button" class="script-morph__play" aria-label="Pause">❚❚</button>
+        <button type="button" class="script-morph__play" aria-label="Pause" title="Pause">❚❚</button>
         <div class="script-morph__seek-col">
           <span class="script-morph__phase" aria-live="polite" hidden></span>
           <div class="script-morph__seek-wrap">
-            <input type="range" class="script-morph__seek" min="0" max="1000" value="0" step="1" aria-label="Seek morph timeline" />
+            <input type="range" class="script-morph__seek" min="0" max="1000" value="0" step="1" aria-label="Seek morph timeline" title="Seek timeline" />
             <div class="script-morph__markers" aria-hidden="true"></div>
           </div>
         </div>

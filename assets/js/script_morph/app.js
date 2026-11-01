@@ -77,7 +77,8 @@ export class ScriptMorph {
       e.stopPropagation();
       this.deactivate();
     });
-    this.stage.addEventListener("click", () => this.step(1));
+    // Stage click seeks a slot mid-morph (wired once target mode is chosen);
+    // it no longer advances to the next script.
     this.stage.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -305,6 +306,7 @@ export class ScriptMorph {
     const paused = this._paused || !this._playing;
     this.playBtn.textContent = paused ? "▶" : "❚❚";
     this.playBtn.setAttribute("aria-label", paused ? "Play" : "Pause");
+    this.playBtn.setAttribute("title", paused ? "Play" : "Pause");
   }
 
   _togglePlayPause() {

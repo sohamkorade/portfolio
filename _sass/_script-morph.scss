@@ -113,36 +113,41 @@
   display: none;
 }
 
+.script-morph__seek-col {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+// Overlay above the track — out of flow so it never grows the transport.
 .script-morph__transport .script-morph__phase {
   display: block !important;
-  position: static;
-  left: auto;
-  top: auto;
-  transform: none;
-  margin: 0 0 0.2rem;
-  min-height: 1.1em;
-  font-size: 0.78rem;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 0.15rem);
+  margin: 0;
+  padding: 0;
+  font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.02em;
+  line-height: 1.2;
   text-transform: none;
+  text-align: start;
   color: var(--sm-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
   user-select: none;
+  z-index: 2;
 
   &[hidden] {
     visibility: hidden;
   }
-}
-
-.script-morph__seek-col {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .script-morph-host.is-active .script-morph {
@@ -373,6 +378,7 @@
   border: 1px solid color-mix(in srgb, var(--sm-fg) 16%, transparent);
   border-radius: 4px;
   background: color-mix(in srgb, var(--global-bg-color, #fff) 88%, transparent);
+  overflow: visible;
   z-index: 3;
 
   &[hidden] {
