@@ -15,7 +15,8 @@
   min-height: 1em;
   overflow: visible;
   line-height: 1;
-  vertical-align: baseline;
+  // Avoid baseline/descender gap under the SVG row (that nudged .desc down on activate).
+  vertical-align: bottom;
 }
 
 .script-morph-label {
@@ -54,10 +55,15 @@
   line-height: 1;
   color: var(--sm-muted);
   white-space: nowrap;
-  pointer-events: none;
+  cursor: pointer;
   user-select: none;
   align-self: center;
   animation: script-morph-hint-pulse 2.4s ease-in-out infinite;
+
+  // Arrow points at the name: left when beside, up when wrapped below.
+  &::before {
+    content: "← ";
+  }
 }
 
 .script-morph-hint.is-hidden,
@@ -86,8 +92,11 @@
   gap: 0.2rem;
   max-width: 100%;
   height: var(--sm-control-h);
+  max-height: var(--sm-control-h);
   min-height: var(--sm-control-h);
-  vertical-align: baseline;
+  line-height: 0;
+  vertical-align: bottom;
+  overflow: visible;
 }
 
 .script-morph__script-name {
@@ -105,11 +114,6 @@
   pointer-events: none;
 }
 
-.script-morph--fullscreen .script-morph__script-name {
-  font-size: 0.9rem;
-  margin-inline: 0.4rem 0.2rem;
-}
-
 .script-morph__phase {
   display: none;
 }
@@ -123,15 +127,13 @@
   justify-content: center;
 }
 
-// Overlay above the track — out of flow so it never grows the transport.
+// Phase sits inside the transport, above the seek track.
 .script-morph__transport .script-morph__phase {
   display: block !important;
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(100% - 0.15rem);
+  position: static;
   margin: 0;
-  padding: 0;
+  padding: 0.2rem 0 0.35rem;
+  min-height: 1.15em;
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -144,7 +146,6 @@
   text-overflow: ellipsis;
   pointer-events: none;
   user-select: none;
-  z-index: 2;
 
   &[hidden] {
     visibility: hidden;
@@ -155,21 +156,8 @@
   display: inline-flex;
 }
 
-// Compact: keep glyph left edge aligned with the resting h1 / about paragraph.
-// Park the prev chevron outside the flow so activating the widget doesn't nudge text.
-.script-morph:not(.script-morph--fullscreen) {
-  .script-morph__btn--prev {
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin: 0;
-  }
-
-  .script-morph__btn--prev.is-nudge {
-    // keep flash visible while absolutely positioned
-    transform: translateY(-50%);
-  }
+.script-morph__nav {
+  display: contents;
 }
 
 .script-morph-host.is-active .script-morph:hover .script-morph__btn,
@@ -178,10 +166,38 @@
   pointer-events: auto;
 }
 
+// Wide compact: park prev left of the glyph so the name stays paragraph-aligned.
+@media (min-width: 1024px) {
+  .script-morph:not(.script-morph--fullscreen) {
+    .script-morph__btn--prev {
+      position: absolute;
+      right: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin: 0;
+    }
+
+    .script-morph__btn--prev.is-nudge {
+      transform: translateY(-50%);
+    }
+  }
+}
+
+// Touch / coarse pointers: controls stay visible (no hover affordance).
+@media (hover: none), (pointer: coarse) {
+  .script-morph-host.is-active .script-morph:not(.script-morph--fullscreen) .script-morph__btn {
+    opacity: 0.85;
+    pointer-events: auto;
+  }
+}
+
 .script-morph__stage {
   cursor: pointer;
   outline: none;
-  min-width: 6.5em;
+  // Hug the SVG — a fixed min-width left a gap before › on short scripts.
+  min-width: 0;
+  width: max-content;
+  max-width: 100%;
   height: var(--sm-control-h);
   line-height: 0;
   display: flex;
@@ -210,6 +226,12 @@
 
 .post-header .post-title {
   overflow: visible;
+}
+
+@media (min-width: 1024px) {
+  .post-header:has(.script-morph-host) .post-title {
+    margin-bottom: 0.45rem;
+  }
 }
 
 .script-morph__slot--from {
@@ -267,15 +289,76 @@
   stroke: var(--sm-morph-to);
 }
 
-.script-morph--fullscreen .script-morph__svg {
-  height: min(28vh, 8rem);
-  max-width: min(70vw, 40rem);
-}
-
 .script-morph--fullscreen {
   --sm-control-h: min(28vh, 8rem);
-  height: var(--sm-control-h);
-  gap: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  height: auto;
+  max-height: none;
+  max-width: 100%;
+  gap: 0.85rem 1rem;
+
+  .script-morph__stage {
+    order: 1;
+  }
+
+  // ‹ › on one row, script name centered under them (all screen sizes).
+  .script-morph__nav {
+    order: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem 0.55rem;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  .script-morph__btn--prev,
+  .script-morph__btn--next {
+    position: static;
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+    min-width: 3.25rem;
+    min-height: 3.25rem;
+    height: 3.25rem;
+    padding: 0;
+    font-size: 2rem;
+    border: 1px solid color-mix(in srgb, var(--sm-fg) 28%, transparent);
+    border-radius: 2px;
+    color: var(--sm-fg);
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--sm-hover);
+      color: var(--sm-hover);
+    }
+  }
+
+  .script-morph__script-name {
+    flex: 0 0 100%;
+    font-size: 0.95rem;
+    margin: 0.15rem 0 0;
+    text-align: center;
+    opacity: 1;
+  }
+
+  .script-morph__svg {
+    height: var(--sm-control-h);
+    max-width: min(70vw, 40rem);
+  }
+
+  // Overlay already has a close control — hide the duplicate widget ×.
+  .script-morph__btn--exit {
+    display: none;
+  }
+
+  .script-morph__btn--fullscreen {
+    display: none;
+  }
 }
 
 .script-morph__btn {
@@ -288,7 +371,10 @@
   cursor: pointer;
   margin: 0;
   padding: 0 0.28em;
+  box-sizing: border-box;
   height: var(--sm-control-h);
+  max-height: var(--sm-control-h);
+  min-height: 0;
   min-width: 1.15em;
   display: inline-flex;
   align-items: center;
@@ -296,6 +382,7 @@
   font-size: 0.85em;
   line-height: 1;
   flex: 0 0 auto;
+  overflow: hidden;
   border-radius: 2px;
   transition: opacity 0.2s ease, color 0.15s ease, border-color 0.15s ease,
     background-color 0.15s ease;
@@ -332,37 +419,6 @@
   }
 }
 
-.script-morph--fullscreen .script-morph__btn--prev,
-.script-morph--fullscreen .script-morph__btn--next {
-  opacity: 1;
-  pointer-events: auto;
-  min-width: 3.25rem;
-  min-height: 3.25rem;
-  height: 3.25rem;
-  padding: 0;
-  font-size: 2rem;
-  border: 1px solid color-mix(in srgb, var(--sm-fg) 28%, transparent);
-  border-radius: 2px;
-  color: var(--sm-fg);
-
-  &:hover,
-  &:focus-visible {
-    border-color: var(--sm-hover);
-    color: var(--sm-hover);
-  }
-}
-
-.script-morph--fullscreen .script-morph__btn--exit {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-@media (hover: none), (pointer: coarse) {
-  .script-morph-host.is-active .script-morph__btn {
-    opacity: 0.7;
-    pointer-events: auto;
-  }
-}
 
 .script-morph-overlay {
   --sm-fg: var(--global-text-color);
@@ -406,7 +462,7 @@
   gap: 0.85rem;
   width: min(40rem, 92%);
   margin: 0 auto 0.35rem;
-  padding: 0.55rem 0.75rem;
+  padding: 0.45rem 0.75rem 0.55rem;
   box-sizing: border-box;
   border: 1px solid color-mix(in srgb, var(--sm-fg) 16%, transparent);
   border-radius: 4px;
@@ -639,21 +695,179 @@
   }
 }
 
+// Compact <1024: keep ‹› in-flow (absolute left chevron was clipping off-canvas).
+@media (max-width: 1023px) {
+  .script-morph-host {
+    // Host-relative chrome row; keep in sync with the inactive min-height below.
+    --sm-mobile-chrome-h: 1.2em;
+    --sm-mobile-row-gap: 0.4rem;
+    --sm-mobile-widget-h: calc(
+      var(--sm-control-h) + var(--sm-mobile-row-gap) + var(--sm-mobile-chrome-h)
+    );
+  }
+
+  // Inactive: hold the active two-line height so .desc doesn't jump on open.
+  .script-morph-host:not(.is-active) {
+    min-height: var(--sm-mobile-widget-h);
+  }
+
+  .script-morph-hint {
+    flex-basis: 100%;
+    margin-top: 0.15em;
+    font-size: 0.36em;
+
+    &::before {
+      content: "↑ ";
+    }
+  }
+
+  .script-morph:not(.script-morph--fullscreen) {
+    flex-wrap: wrap;
+    align-items: center;
+    height: auto;
+    max-height: none;
+    min-height: var(--sm-control-h);
+    max-width: 100%;
+    column-gap: 0.2rem;
+    row-gap: var(--sm-mobile-row-gap);
+
+    // Glyphs on the first row; all chrome under the name.
+    .script-morph__stage {
+      order: 1;
+      flex: 1 1 100%;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .script-morph__svg {
+      max-width: min(100%, 16em);
+    }
+
+    .script-morph__nav {
+      display: inline-flex;
+      align-items: center;
+      order: 2;
+      gap: 0.15rem 0.25rem;
+      height: var(--sm-mobile-chrome-h);
+    }
+
+    .script-morph__btn--prev,
+    .script-morph__btn--next {
+      position: static;
+      transform: none;
+      opacity: 0.85;
+      pointer-events: auto;
+      // font-size: inherit so em heights match --sm-mobile-chrome-h on the host.
+      font-size: 1em;
+      height: var(--sm-mobile-chrome-h);
+      max-height: var(--sm-mobile-chrome-h);
+      min-height: var(--sm-mobile-chrome-h);
+    }
+
+    .script-morph__script-name {
+      font-size: 0.32em;
+      margin-inline: 0.15em 0.1em;
+      opacity: 1;
+    }
+
+    .script-morph__btn--fullscreen,
+    .script-morph__btn--exit {
+      order: 2;
+      opacity: 0.85;
+      pointer-events: auto;
+      font-size: 1em;
+      min-width: var(--sm-mobile-chrome-h);
+      height: var(--sm-mobile-chrome-h);
+      max-height: var(--sm-mobile-chrome-h);
+      min-height: var(--sm-mobile-chrome-h);
+    }
+  }
+
+  .script-morph-host.is-active {
+    max-width: 100%;
+  }
+}
+
 @media (max-width: 720px) {
+  // Fullscreen overlay: stage + transport first, horizontal script chips below.
   .script-morph-overlay {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
+    align-items: stretch;
+  }
+
+  .script-morph-overlay__main {
+    padding: 3.25rem 0.85rem 0.85rem;
+    gap: 0.85rem;
+    grid-template-rows: 1fr auto;
+  }
+
+  .script-morph-overlay__stage {
+    width: 100%;
+    padding: 0 0.25rem;
+  }
+
+  .script-morph--fullscreen {
+    --sm-control-h: min(22vh, 6.5rem);
+    width: 100%;
+    gap: 0.65rem;
+  }
+
+  .script-morph--fullscreen .script-morph__svg {
+    max-width: min(92vw, 28rem);
+  }
+
+  .script-morph--fullscreen .script-morph__btn--prev,
+  .script-morph--fullscreen .script-morph__btn--next {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.65rem;
+  }
+
+  .script-morph__transport {
+    width: min(100%, 36rem);
+    padding: 0.7rem 0.65rem;
+    gap: 0.55rem;
   }
 
   .script-morph-chooser {
     border-left: 0;
     border-top: 1px solid color-mix(in srgb, var(--sm-fg) 18%, transparent);
-    max-height: 40vh;
-    padding-top: 1rem;
+    max-height: none;
+    padding: 0.75rem 0.75rem calc(0.75rem + env(safe-area-inset-bottom, 0));
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .script-morph-chooser__title {
+    font-size: 0.85rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .script-morph-chooser__list {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+    width: max-content;
+    min-width: 100%;
+    padding-bottom: 0.15rem;
+  }
+
+  .script-morph-chooser__btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.9rem;
+    border: 1px solid color-mix(in srgb, var(--sm-fg) 18%, transparent);
   }
 
   .script-morph-overlay__close {
-    right: 0.75rem;
+    top: max(0.65rem, env(safe-area-inset-top, 0px));
+    right: max(0.5rem, env(safe-area-inset-right, 0px));
+    font-size: 1.75rem;
+    padding: 0.4rem 0.55rem;
   }
 }
 
