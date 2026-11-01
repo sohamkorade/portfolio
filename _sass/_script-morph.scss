@@ -234,6 +234,21 @@
   stroke: var(--sm-hover);
 }
 
+// Transparent hit target above ink; warm outline when hovered (class set in JS
+// because the SVG tree is rebuilt every frame during morph).
+.script-morph__slot-hit {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 22;
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.script-morph__slot-hit.is-hover {
+  fill: color-mix(in srgb, var(--sm-morph-to) 16%, transparent);
+  stroke: var(--sm-morph-to);
+}
+
 .script-morph--fullscreen .script-morph__svg {
   height: min(28vh, 8rem);
   max-width: min(70vw, 40rem);

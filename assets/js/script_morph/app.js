@@ -4,7 +4,7 @@ import {
   REDUCED,
   scriptById,
 } from "./util.js";
-import { planTimeline, stateAt } from "./timeline.js";
+import { planTimeline, stateAt, slotAnchorMs } from "./timeline.js";
 import { paint, paintScript } from "./paint.js";
 import {
   buildWidget,
@@ -77,8 +77,10 @@ export class ScriptMorph {
       e.stopPropagation();
       this.deactivate();
     });
-    // Stage click seeks a slot mid-morph (wired once target mode is chosen);
-    // it no longer advances to the next script.
+    this.stage.addEventListener("pointerdown", (e) => this._onStagePointerDown(e));
+    this.stage.addEventListener("pointerup", (e) => this._onStagePointerUp(e));
+    this.stage.addEventListener("pointermove", (e) => this._onStagePointerMove(e));
+    this.stage.addEventListener("pointerleave", () => this._onStagePointerLeave());
     this.stage.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -282,6 +284,7 @@ export class ScriptMorph {
   _paintAt(ms) {
     if (!this._timeline) return;
     const state = stateAt(this._timeline, ms);
+    state.hoverSlot = this._hoverSlot;
     paint(this.svg, state);
     this._setPhase(state.label);
     this._syncTransport();
@@ -321,6 +324,84 @@ export class ScriptMorph {
     this._playing = !this._paused;
     this._lastTs = 0;
     this._syncPlayButton();
+  }
+
+  /** Resolve slot under the pointer from the live SVG (survives per-frame rebuilds). */
+  _slotAtPoint(clientX, clientY) {
+    if (!this.svg) return null;
+    for (const node of document.elementsFromPoint(clientX, clientY)) {
+      if (!this.svg.contains(node)) continue;
+      const host = node.hasAttribute?.("data-slot")
+        ? node
+        : node.closest?.("[data-slot]");
+      if (!host || !this.svg.contains(host)) continue;
+      const slot = parseInt(host.getAttribute("data-slot"), 10);
+      if (!Number.isNaN(slot)) return slot;
+    }
+    return null;
+  }
+
+  _onStagePointerDown(e) {
+    // Capture slot now — while playing, SVG nodes are replaced every frame and
+    // browsers often suppress `click` when the down-target is removed.
+    this._pressSlot = this._slotAtPoint(e.clientX, e.clientY);
+    this._pressX = e.clientX;
+    this._pressY = e.clientY;
+  }
+
+  _onStagePointerMove(e) {
+    const slot = this._slotAtPoint(e.clientX, e.clientY);
+    if (slot === this._hoverSlot) return;
+    this._hoverSlot = slot;
+    // Repaint current frame so hover outline survives SVG rebuilds.
+    if (this._timeline) this._paintAt(this._playheadMs || 0);
+    else if (this.svg && this._hoverSlot != null) {
+      // Static snap: re-paint current script with hover.
+      const id = this.carousel[this.index];
+      const script = scriptById(this.data, id);
+      if (script) {
+        const joined = script.compose?.mode === "cursive" && script.joined;
+        paintScript(this.svg, script, {
+          joined: !!joined,
+          hoverSlot: this._hoverSlot,
+        });
+      }
+    }
+  }
+
+  _onStagePointerLeave() {
+    if (this._hoverSlot == null) return;
+    this._hoverSlot = null;
+    if (this._timeline) this._paintAt(this._playheadMs || 0);
+    else {
+      const id = this.carousel[this.index];
+      const script = scriptById(this.data, id);
+      if (script) {
+        const joined = script.compose?.mode === "cursive" && script.joined;
+        paintScript(this.svg, script, { joined: !!joined });
+      }
+    }
+  }
+
+  /** Pointer-up a glyph → seek to that slot's first morph step (option A). */
+  _onStagePointerUp(e) {
+    if (!this._timeline || !this._fromId || !this._toId) return;
+    const slot = this._pressSlot;
+    const x0 = this._pressX;
+    const y0 = this._pressY;
+    this._pressSlot = null;
+    if (slot == null) return;
+    if (
+      x0 != null &&
+      y0 != null &&
+      Math.hypot(e.clientX - x0, e.clientY - y0) > 8
+    ) {
+      return;
+    }
+    const ms = slotAnchorMs(this._timeline, slot, this._playheadMs || 0);
+    if (ms == null) return;
+    e.preventDefault();
+    this._onSeekCommit(ms);
   }
 
   _onSeekCommit(ms) {

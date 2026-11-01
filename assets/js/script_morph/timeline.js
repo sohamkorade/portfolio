@@ -177,6 +177,9 @@ function fineTicksForMorph(morphStart, from, to, reversed, fullscreen, opts = {}
                   ? "Matra correspondence"
                   : "Grapheme correspondence",
       fine: true,
+      slot: step.slot,
+      markSlot: step.markSlot,
+      kind: step.kind,
     });
     acc += scaleDuration(stepDuration(step, atomMs), fullscreen);
     if (i < steps.length - 1) {
@@ -285,6 +288,33 @@ export function planTimeline(from, to, fullscreen) {
     enteringLatin,
     morphReversed,
   };
+}
+
+const MORPH_SEG_IDS = new Set(["morph", "case-out", "case-in"]);
+
+/**
+ * Absolute ms for the start of a slot's work (option A: first step touching
+ * that slot). Prefers the morph-like segment under `aroundMs`, else main morph.
+ */
+export function slotAnchorMs(plan, slotIndex, aroundMs = 0) {
+  if (!plan || slotIndex == null || slotIndex < 0) return null;
+  const morphSegs = plan.segments.filter((s) => MORPH_SEG_IDS.has(s.id));
+  if (!morphSegs.length) return null;
+
+  const seg =
+    morphSegs.find((s) => aroundMs >= s.start && aroundMs <= s.end) ||
+    morphSegs.find((s) => s.id === "morph") ||
+    morphSegs[0];
+
+  const ticks = (plan.fineTicks || []).filter(
+    (t) =>
+      t.ms >= seg.start &&
+      t.ms < seg.end &&
+      (t.slot === slotIndex || t.markSlot === slotIndex)
+  );
+  if (ticks.length) return ticks[0].ms;
+  // Unchanged slot: land at segment start (prep / morph open).
+  return seg.start;
 }
 
 function segmentAt(plan, ms) {

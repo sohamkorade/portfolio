@@ -20,6 +20,33 @@ import {
 const CLS_FROM = "script-morph__slot script-morph__slot--from";
 const CLS_TO = "script-morph__slot script-morph__slot--to";
 
+/** Invisible hit/hover target for a slot cell (must sit above ink). */
+export function slotHitRect(slotIndex, x, y, w, h, hovered = false, extra = {}) {
+  return el("rect", {
+    className: hovered
+      ? "script-morph__slot-hit is-hover"
+      : "script-morph__slot-hit",
+    x,
+    y,
+    width: Math.max(w, 1),
+    height: Math.max(h, 1),
+    rx: 20,
+    "data-slot": slotIndex,
+    ...extra,
+  });
+}
+
+function slotBoundsPad(slot, pad = BOX_PAD) {
+  const adv = slot.advance || 0;
+  const b = slot.bounds || [0, 0, adv, 800];
+  return {
+    x: -pad,
+    y: b[1] - pad,
+    w: Math.max(adv, b[2] - b[0], 1) + pad * 2,
+    h: Math.max(b[3] - b[1], 1) + pad * 2,
+  };
+}
+
 /** Base consonant vs matra/anusvāra while unjoined; else script from→to. */
 function atomClass(i, side, split) {
   if (split) return i === 0 ? CLS_FROM : CLS_TO;
@@ -131,12 +158,15 @@ export function paintMorph(svg, state) {
     prepT,
     sameScript,
     reversed,
+    hoverSlot,
   } = state;
   const n = from.slots.length;
   const fromGap = from.family === "arabic" ? ISOL_GAP : 0;
   const fromRtl = from.dir === "rtl";
   const toRtl = to.dir === "rtl";
   const atomRtl = { fromRtl, toRtl };
+  const hover =
+    hoverSlot == null || Number.isNaN(hoverSlot) ? -1 : hoverSlot;
   const fromSettled = resolveAttachedSlots(from);
   const toSettled = resolveAttachedSlots(to);
   const fit = sameScript
@@ -452,6 +482,18 @@ export function paintMorph(svg, state) {
       );
     }
 
+    // Hit target on top so hover/click work despite per-frame SVG rebuilds.
+    slotG.appendChild(
+      slotHitRect(
+        logical,
+        -BOX_PAD,
+        by,
+        cellW + BOX_PAD * 2,
+        Math.max(bh, 1),
+        hover === logical
+      )
+    );
+
     g.appendChild(slotG);
     items.push({ slotG, startCellW, endCellW, skip: false });
   }
@@ -488,6 +530,10 @@ export function paintMorph(svg, state) {
 }
 
 export function paintStatic(svg, script, opts = {}) {
+  const hover =
+    opts.hoverSlot == null || Number.isNaN(opts.hoverSlot)
+      ? -1
+      : opts.hoverSlot;
   const g = el("g", { className: "script-morph__row" });
   if (opts.joined && script.joined?.path) {
     const jm = script.joined;
@@ -522,17 +568,25 @@ export function paintStatic(svg, script, opts = {}) {
         // Absorbed mark slot — skip entirely (no advance).
         return;
       }
-      g.appendChild(
+      const cell = el("g", {
+        className: "script-morph__slot-pair",
+        "data-slot": logical,
+        "data-visual": visual,
+        transform: `translate(${x}, 0)`,
+      });
+      cell.appendChild(
         el("path", {
           className: opts.joining
             ? "script-morph__slot script-morph__slot--unjoined"
             : "script-morph__slot",
           d: slotPath(slot),
-          transform: `translate(${x}, 0)`,
-          "data-slot": logical,
-          "data-visual": visual,
         })
       );
+      const hb = slotBoundsPad(slot);
+      cell.appendChild(
+        slotHitRect(logical, hb.x, hb.y, hb.w, hb.h, hover === logical)
+      );
+      g.appendChild(cell);
       x += (slot.advance || 0) + isolGap;
     });
     const metrics = displayMetrics(viewScript, { isolGap });

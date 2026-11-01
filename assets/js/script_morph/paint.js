@@ -9,6 +9,7 @@ import {
 /** Paint a stateAt snapshot into the SVG. */
 export function paint(svg, state) {
   if (!svg || !state) return;
+  const hoverSlot = state.hoverSlot;
   switch (state.kind) {
     case "morph":
       paintMorph(svg, state);
@@ -32,6 +33,7 @@ export function paint(svg, state) {
       paintSettle(svg, state.script, state.t, {
         joined: state.joined,
         from: state.from,
+        hoverSlot,
       });
       break;
     case "static":
@@ -39,6 +41,7 @@ export function paint(svg, state) {
       paintStatic(svg, state.script || state.to, {
         joined: state.joined,
         reversed: state.reversed,
+        hoverSlot,
       });
       break;
   }

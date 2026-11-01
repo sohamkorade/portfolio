@@ -2,6 +2,7 @@ import {
   el,
   slotPath,
   ISOL_GAP,
+  BOX_PAD,
   lerp,
   resolveAttachedSlots,
 } from "./util.js";
@@ -11,7 +12,7 @@ import {
   rtlXs,
   morphToFit,
 } from "./metrics.js";
-import { paintStatic } from "./morph.js";
+import { paintStatic, slotHitRect } from "./morph.js";
 
 function joinedMetrics(script) {
   const jm = script.joined;
@@ -260,6 +261,10 @@ export function paintSettle(svg, script, t, opts = {}) {
   const startM = fit?.fromM || endM;
   const scale = fit ? lerp(fit.scale, 1, t) : 1;
   const dy = fit ? lerp(fit.dy, 0, t) : 0;
+  const hover =
+    opts.hoverSlot == null || Number.isNaN(opts.hoverSlot)
+      ? -1
+      : opts.hoverSlot;
 
   const g = el("g", { className: "script-morph__row" });
   const ink = el("g", {
@@ -270,27 +275,40 @@ export function paintSettle(svg, script, t, opts = {}) {
   for (let i = 0; i < slots.length; i++) {
     const slot = slots[i];
     if (slot.empty && !(slot.advance > 0)) continue;
+    const cell = el("g", {
+      className: "script-morph__slot-pair",
+      "data-slot": i,
+      transform: `translate(${x}, 0)`,
+    });
     const resting = el("path", {
       className:
         t >= 0.999
           ? "script-morph__slot"
           : "script-morph__slot script-morph__slot--settling",
       d: slotPath(slot),
-      transform: `translate(${x}, 0)`,
-      "data-slot": i,
     });
     if (t < 0.999) {
       const tint = el("path", {
         className: "script-morph__slot script-morph__slot--to",
         d: slotPath(slot),
-        transform: `translate(${x}, 0)`,
-        "data-slot": i,
       });
       tint.style.opacity = String(1 - t);
       resting.style.opacity = String(t);
-      ink.appendChild(tint);
+      cell.appendChild(tint);
     }
-    ink.appendChild(resting);
+    cell.appendChild(resting);
+    const b = slot.bounds || [0, 0, slot.advance || 0, 800];
+    cell.appendChild(
+      slotHitRect(
+        i,
+        -BOX_PAD,
+        b[1] - BOX_PAD,
+        Math.max(slot.advance || 0, 1) + BOX_PAD * 2,
+        Math.max(b[3] - b[1], 1) + BOX_PAD * 2,
+        hover === i
+      )
+    );
+    ink.appendChild(cell);
     x += slot.advance || 0;
   }
   g.appendChild(ink);
