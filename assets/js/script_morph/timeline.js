@@ -38,14 +38,17 @@ function attachPlans(script) {
   );
 }
 
-/** Ordered matra/base morph steps, with combine + anusvāra attach like matras. */
-export function morphSteps(from, to, reversed = false) {
+/**
+ * Ordered matra/base morph steps, with combine + anusvāra attach like matras.
+ * Slot order is logical reading order (0→n). For RTL/cursive layouts logical 0
+ * sits on the right, so the animation runs right→left on screen.
+ */
+export function morphSteps(from, to, rtl = false) {
   const n = from.slots.length;
   const order = [];
   for (let i = 0; i < n; i++) {
     if (!slotsEqual(from.slots[i], to.slots[i])) order.push(i);
   }
-  if (reversed) order.reverse();
 
   const attaches = attachPlans(to);
   const done = new Set();
@@ -71,7 +74,9 @@ export function morphSteps(from, to, reversed = false) {
 
   for (const slot of order) {
     const { n: atomN } = padAtoms(atomsOf(from.slots[slot]), atomsOf(to.slots[slot]));
-    for (let atom = 0; atom < atomN; atom++) {
+    // RTL: morph atoms right→left within the syllable (same reading grain).
+    for (let i = 0; i < atomN; i++) {
+      const atom = rtl ? atomN - 1 - i : i;
       steps.push({ slot, atom, atomCount: atomN, kind: "atom" });
     }
     if (atomN > 1) {
