@@ -26,6 +26,28 @@ function atomClass(i, side, split) {
   return side === "from" ? CLS_FROM : CLS_TO;
 }
 
+/** Per-atom x origins; RTL places logical index 0 on the right. */
+function atomOrigins(atoms, pad, scale = 1, rtl = false) {
+  const adv = atoms.map((a) =>
+    a && !a.empty ? (a.advance || 0) * scale : 0
+  );
+  const xs = new Array(atoms.length);
+  if (!rtl) {
+    let x = pad;
+    for (let i = 0; i < atoms.length; i++) {
+      xs[i] = x;
+      x += adv[i];
+    }
+  } else {
+    let x = pad;
+    for (let i = atoms.length - 1; i >= 0; i--) {
+      xs[i] = x;
+      x += adv[i];
+    }
+  }
+  return xs;
+}
+
 /** Crossfade padded base/matra atoms using per-atom progress. */
 function paintAtomPair(
   slotG,
@@ -36,12 +58,13 @@ function paintAtomPair(
   toPad,
   scale,
   dy,
-  atomOpacity = 1
+  atomOpacity = 1,
+  { fromRtl = false, toRtl = false } = {}
 ) {
   const { from, to, n } = padAtoms(fromAtoms, toAtoms);
   const split = fromAtoms.length > 1 || toAtoms.length > 1;
-  let xFrom = fromPad;
-  let xTo = toPad;
+  const fromXs = atomOrigins(from, fromPad, 1, fromRtl);
+  const toXs = atomOrigins(to, toPad, scale, toRtl);
   for (let i = 0; i < n; i++) {
     const a = from[i];
     const b = to[i];
@@ -50,21 +73,19 @@ function paintAtomPair(
       const p = el("path", {
         className: atomClass(i, "from", split),
         d: slotPath(a),
-        transform: `translate(${xFrom}, 0)`,
+        transform: `translate(${fromXs[i]}, 0)`,
       });
       p.style.opacity = String((1 - local) * atomOpacity);
       slotG.appendChild(p);
-      xFrom += a.advance || 0;
     }
     if (b && !b.empty) {
       const p = el("path", {
         className: atomClass(i, "to", split),
         d: slotPath(b),
-        transform: `translate(${xTo}, ${dy}) scale(${scale})`,
+        transform: `translate(${toXs[i]}, ${dy}) scale(${scale})`,
       });
       p.style.opacity = String(local * atomOpacity);
       slotG.appendChild(p);
-      xTo += (b.advance || 0) * scale;
     }
   }
 }
@@ -113,6 +134,9 @@ export function paintMorph(svg, state) {
   } = state;
   const n = from.slots.length;
   const fromGap = from.family === "arabic" ? ISOL_GAP : 0;
+  const fromRtl = from.dir === "rtl";
+  const toRtl = to.dir === "rtl";
+  const atomRtl = { fromRtl, toRtl };
   const fromSettled = resolveAttachedSlots(from);
   const toSettled = resolveAttachedSlots(to);
   const fit = sameScript
@@ -320,7 +344,8 @@ export function paintMorph(svg, state) {
           toPadX,
           toScale,
           toDy,
-          baseOpacity * discombine * (1 - combine)
+          baseOpacity * discombine * (1 - combine),
+          atomRtl
         );
         if (combine > 0.001) {
           const syl = el("path", {
@@ -382,7 +407,8 @@ export function paintMorph(svg, state) {
         toPadX,
         toScale,
         toDy,
-        discombine
+        discombine,
+        atomRtl
       );
     } else if (needsCombine && combine > 0.001) {
       // Settle B: consonant (--from) + matra (--to) → combined.
@@ -395,7 +421,8 @@ export function paintMorph(svg, state) {
         toPadX,
         toScale,
         toDy,
-        1 - combine
+        1 - combine,
+        atomRtl
       );
       const combined = el("path", {
         className: `${CLS_TO} script-morph__composed`,
@@ -414,7 +441,8 @@ export function paintMorph(svg, state) {
         toPadX,
         toScale,
         toDy,
-        1
+        1,
+        atomRtl
       );
     }
 

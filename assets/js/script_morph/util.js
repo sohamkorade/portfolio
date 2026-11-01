@@ -23,8 +23,8 @@ export const MS = {
   slotPrep: 520,
   spread: 560,
   reverse: 1100,
-  joinStep: 1400,
-  joinGap: 220,
+  joinStep: 720,
+  joinGap: 100,
   segregate: 80,
 };
 

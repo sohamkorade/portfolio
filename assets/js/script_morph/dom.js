@@ -46,9 +46,12 @@ export function buildOverlay(carousel, data) {
       <div class="script-morph-overlay__stage"></div>
       <div class="script-morph__transport">
         <button type="button" class="script-morph__play" aria-label="Pause">❚❚</button>
-        <div class="script-morph__seek-wrap">
-          <input type="range" class="script-morph__seek" min="0" max="1000" value="0" step="1" aria-label="Seek morph timeline" />
-          <div class="script-morph__markers" aria-hidden="true"></div>
+        <div class="script-morph__seek-col">
+          <span class="script-morph__phase" aria-live="polite" hidden></span>
+          <div class="script-morph__seek-wrap">
+            <input type="range" class="script-morph__seek" min="0" max="1000" value="0" step="1" aria-label="Seek morph timeline" />
+            <div class="script-morph__markers" aria-hidden="true"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -64,6 +67,7 @@ export function buildOverlay(carousel, data) {
     playBtn: overlay.querySelector(".script-morph__play"),
     seekEl: overlay.querySelector(".script-morph__seek"),
     markersEl: overlay.querySelector(".script-morph__markers"),
+    phaseEl: overlay.querySelector(".script-morph__phase"),
     chooser: overlay.querySelector(".script-morph-chooser"),
     closeBtn: overlay.querySelector(".script-morph-overlay__close"),
   };

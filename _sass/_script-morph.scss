@@ -113,20 +113,36 @@
   display: none;
 }
 
-.script-morph--fullscreen .script-morph__phase {
-  display: block;
-  position: absolute;
-  left: 50%;
-  top: calc(100% + 0.55rem);
-  transform: translateX(-50%);
+.script-morph__transport .script-morph__phase {
+  display: block !important;
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  margin: 0 0 0.2rem;
+  min-height: 1.1em;
   font-size: 0.78rem;
   font-weight: 500;
   letter-spacing: 0.02em;
   text-transform: none;
   color: var(--sm-muted);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
   user-select: none;
+
+  &[hidden] {
+    visibility: hidden;
+  }
+}
+
+.script-morph__seek-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .script-morph-host.is-active .script-morph {

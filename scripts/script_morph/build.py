@@ -141,25 +141,31 @@ def isolate_joining_text(text: str) -> str:
 
 
 def split_atoms(text: str) -> list[str]:
-    """Split a cell into base + combining-mark atoms (Akshar matras=True style).
+    """Split a cell into letter + mark atoms (Akshar matras=True style).
 
-    Bases (letters, digits, symbols) accumulate; each Mn/Mc mark
-    (matra, virama, anusvāra, …) is emitted as its own atom.
+    Each letter (Unicode L*) is its own atom so Arabic CV pairs like سو / کو / ڈے
+    split within the slot; each Mn/Mc mark (matra, fatha, sukun, …) is also its
+    own atom. Non-letter, non-mark runs (space, punctuation, digits, …) stay fused.
     """
     if not text or text.isspace():
         return [text]
     atoms: list[str] = []
-    buf = ""
+    buf = ""  # fused non-letter / non-mark run
+
+    def flush():
+        nonlocal buf
+        if buf:
+            atoms.append(buf)
+            buf = ""
+
     for ch in text:
-        if unicodedata.category(ch).startswith("M"):
-            if buf:
-                atoms.append(buf)
-                buf = ""
+        cat = unicodedata.category(ch)
+        if cat.startswith("M") or cat.startswith("L"):
+            flush()
             atoms.append(ch)
         else:
             buf += ch
-    if buf:
-        atoms.append(buf)
+    flush()
     return atoms or [text]
 
 

@@ -406,6 +406,7 @@ export class ScriptMorph {
     this.playBtn = null;
     this.seekEl = null;
     this.markersEl = null;
+    this.phaseEl = this.root.querySelector(".script-morph__phase");
     this._setPhase("");
     if (this._placeholder?.parentNode) {
       this._placeholder.parentNode.insertBefore(this.root, this._placeholder);

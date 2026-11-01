@@ -61,10 +61,10 @@ function attachPlans(script) {
 /**
  * Ordered leave-A → atom morph → settle-B steps.
  * Matras and anusvāras share one grain: discombine/detach, then atoms, then
- * combine/attach. Slot order is logical reading order (0→n). For RTL/cursive
- * layouts logical 0 sits on the right, so the animation runs right→left on screen.
+ * combine/attach. Slot and atom order are always logical 0→n; RTL only affects
+ * paint layout (logical 0 on the right), not step timing.
  */
-export function morphSteps(from, to, rtl = false) {
+export function morphSteps(from, to, _rtl = false) {
   const n = from.slots.length;
   const order = [];
   for (let i = 0; i < n; i++) {
@@ -116,10 +116,10 @@ export function morphSteps(from, to, rtl = false) {
     if (fromAtoms.length > 1) {
       steps.push({ slot, atom: -1, atomCount: atomN, kind: "discombine" });
     }
-    // RTL: morph atoms right→left within the syllable (same reading grain).
+    // Always logical 0→n within the slot (س then و). RTL only flips *layout*,
+    // not appearance order — reversing here made و/o land before س/s.
     for (let i = 0; i < atomN; i++) {
-      const atom = rtl ? atomN - 1 - i : i;
-      steps.push({ slot, atom, atomCount: atomN, kind: "atom" });
+      steps.push({ slot, atom: i, atomCount: atomN, kind: "atom" });
     }
     // Settle B: merge matured atoms into the syllable outline.
     if (toAtoms.length > 1) {

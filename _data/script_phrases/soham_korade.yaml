@@ -1,5 +1,5 @@
 # Homepage name morph. Outlines from scripts/script_morph/build.py — do not hand-edit paths.
-# cells[] are aligned morph slots (So|ha|m| |Ko|ra|de). build.py emits atoms (base|matra) when marks exist.
+# cells[] are aligned morph slots (So|ha|m| |Ko|ra|de). build.py emits letter|mark atoms within a cell.
 # Optional compose (attach / cursive) is data-driven after morph.
 id: soham_korade
 accessible_name: Soham Korade
@@ -162,7 +162,7 @@ scripts:
     family: arabic
     dir: rtl
     font: noto-nastaliq-urdu
-    cells: ["سو", "ہَ", "مْ", " ", "کو", "ر", "ڈے"]
+    cells: ["سو", "ہَ", "مْ", " ", "کو", "رَ", "ڈے"]
     compose:
       mode: cursive
       term: "Cursive joining"
