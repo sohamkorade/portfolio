@@ -221,10 +221,15 @@ export class ScriptMorph {
 
   _syncChooser() {
     if (!this.chooser) return;
+    let selected = null;
     this.chooser.querySelectorAll(".script-morph-chooser__btn").forEach((btn) => {
       const on = btn.getAttribute("data-script") === this.carousel[this.index];
       btn.setAttribute("aria-current", on ? "true" : "false");
+      if (on) selected = btn;
     });
+    if (selected) {
+      selected.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    }
   }
 
   _stop() {
@@ -441,6 +446,7 @@ export class ScriptMorph {
     this._fsHost.appendChild(this.root);
     this.root.classList.add("script-morph--fullscreen");
     this.btnFs.hidden = true;
+    this.btnExit.hidden = true;
 
     if (!this._timeline) {
       const cur = scriptById(this.data, this.carousel[this.index]);
@@ -498,6 +504,17 @@ export class ScriptMorph {
       if (!btn) return;
       this.goToScriptId(btn.getAttribute("data-script"));
     });
+    // Blank fullscreen chrome dismisses; keep clicks on the morph / transport / chooser.
+    this.overlay.addEventListener("click", (e) => {
+      if (
+        e.target.closest(
+          ".script-morph, .script-morph__transport, .script-morph-chooser, .script-morph-overlay__close"
+        )
+      ) {
+        return;
+      }
+      this.closeFullscreen();
+    });
     this._syncChooser();
     this.closeBtn.addEventListener("click", () => this.closeFullscreen());
     this.closeBtn.focus();
@@ -509,6 +526,7 @@ export class ScriptMorph {
     this._paused = false;
     this._playing = true;
     this.btnFs.hidden = false;
+    this.btnExit.hidden = false;
     this.root.classList.remove("script-morph--fullscreen");
     this.chooser = null;
     this.transportEl = null;
