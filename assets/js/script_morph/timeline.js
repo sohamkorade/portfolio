@@ -534,6 +534,8 @@ export function stateAt(plan, ms) {
       return {
         ...base,
         kind: "settle",
+        // Undo morphToFit framing from the last morph source → resting `to`.
+        from: morphFrom,
         script: to,
         t: eased,
         joined: !!joined,

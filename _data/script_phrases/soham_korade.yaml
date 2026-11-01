@@ -1,5 +1,6 @@
 # Homepage name morph. Outlines from scripts/script_morph/build.py — do not hand-edit paths.
-# cells[] are aligned morph slots (So|ha|m| |Ko|ra|de). build.py emits letter|mark atoms within a cell.
+# cells[] are aligned morph slots (So|ha|m| |Ko|ra|de).
+# Optional atoms[] (parallel to cells) declares within-slot parts; else build.py auto-splits letters|marks.
 # Optional compose (attach / cursive) is data-driven after morph.
 id: soham_korade
 accessible_name: Soham Korade
@@ -35,6 +36,14 @@ scripts:
     dir: ltr
     font: noto-sans
     cells: ["So", "ha", "m", " ", "Ko", "ra", "de"]
+    atoms:
+      - ["S", "o"]
+      - ["h", "a"]
+      - ["m"]
+      - [" "]
+      - ["K", "o"]
+      - ["r", "a"]
+      - ["d", "e"]
 
   - id: devanagari
     label: Devanagari

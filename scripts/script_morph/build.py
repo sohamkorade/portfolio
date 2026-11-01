@@ -314,14 +314,23 @@ def extract_slot(
     }
 
 
+def cell_atom_parts(cell: str, declared: list | None = None) -> list[str]:
+    """Within-slot parts: YAML atoms[] override when present, else Unicode split."""
+    if declared is not None:
+        parts = [str(p) for p in declared]
+        return parts or [cell]
+    return split_atoms(cell)
+
+
 def extract_atoms(
     font_path: Path,
     face_index: int,
     cell: str,
     direction: str = "ltr",
+    declared: list | None = None,
 ) -> list[dict] | None:
     """Shape matra-level atoms for a cell; None when the cell is a single atom."""
-    parts = split_atoms(cell)
+    parts = cell_atom_parts(cell, declared)
     if len(parts) <= 1:
         return None
     atoms = []
@@ -383,12 +392,21 @@ def build_phrase(phrase_path: Path, fonts: dict) -> dict:
 
         print(f"  shaping {script['id']}…")
         direction = script.get("dir", "ltr")
+        declared_atoms = script.get("atoms")
+        if declared_atoms is not None and len(declared_atoms) != len(cells):
+            raise SystemExit(
+                f"Script '{script['id']}' atoms length {len(declared_atoms)} "
+                f"!= cells length {len(cells)}"
+            )
         slots = []
-        for cell in cells:
+        for i, cell in enumerate(cells):
             shaped = isolate_joining_text(cell) if script.get("join") else cell
             slot = extract_slot(font_path, face_index, shaped, direction=direction)
             slot["text"] = cell
-            atoms = extract_atoms(font_path, face_index, cell, direction=direction)
+            declared = declared_atoms[i] if declared_atoms is not None else None
+            atoms = extract_atoms(
+                font_path, face_index, cell, direction=direction, declared=declared
+            )
             if atoms:
                 slot["atoms"] = atoms
             slots.append(slot)
@@ -405,17 +423,29 @@ def build_phrase(phrase_path: Path, fonts: dict) -> dict:
         if script["id"] == "latin" or script.get("case_fold"):
             print(f"  shaping {script['id']} (lowercase)…")
             lower_slots = []
-            for cell in cells:
+            for i, cell in enumerate(cells):
                 lower = cell.lower()
-                lower_slots.append(
-                    extract_slot(
-                        font_path,
-                        face_index,
-                        lower,
-                        direction=script.get("dir", "ltr"),
-                    )
+                slot = extract_slot(
+                    font_path,
+                    face_index,
+                    lower,
+                    direction=direction,
                 )
-                lower_slots[-1]["text"] = lower
+                slot["text"] = lower
+                declared = declared_atoms[i] if declared_atoms is not None else None
+                lower_declared = (
+                    [str(p).lower() for p in declared] if declared is not None else None
+                )
+                atoms = extract_atoms(
+                    font_path,
+                    face_index,
+                    lower,
+                    direction=direction,
+                    declared=lower_declared,
+                )
+                if atoms:
+                    slot["atoms"] = atoms
+                lower_slots.append(slot)
             entry["slots_lower"] = lower_slots
         # Generalized post-morph composition (attach marks, cursive join, …).
         compose = script.get("compose") or {}

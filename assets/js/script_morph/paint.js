@@ -29,7 +29,10 @@ export function paint(svg, state) {
       paintAttach(svg, state.script, state.step, state.t);
       break;
     case "settle":
-      paintSettle(svg, state.script, state.t, state.joined);
+      paintSettle(svg, state.script, state.t, {
+        joined: state.joined,
+        from: state.from,
+      });
       break;
     case "static":
     default:

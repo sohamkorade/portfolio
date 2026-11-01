@@ -1,6 +1,33 @@
-import { el, slotPath, ISOL_GAP, lerp } from "./util.js";
-import { displayMetrics, setViewBox, rtlXs } from "./metrics.js";
+import {
+  el,
+  slotPath,
+  ISOL_GAP,
+  lerp,
+  resolveAttachedSlots,
+} from "./util.js";
+import {
+  displayMetrics,
+  setViewBox,
+  rtlXs,
+  morphToFit,
+} from "./metrics.js";
 import { paintStatic } from "./morph.js";
+
+function joinedMetrics(script) {
+  const jm = script.joined;
+  const metrics = displayMetrics({
+    ...script,
+    slots: [
+      {
+        empty: false,
+        advance: jm.advance || 0,
+        bounds: jm.bounds || [0, 0, jm.advance || 1, 800],
+      },
+    ],
+  });
+  metrics.width = Math.max(jm.advance || metrics.width, 1);
+  return metrics;
+}
 
 export function paintSpread(svg, script, t) {
   const n = script.slots.length;
@@ -190,34 +217,94 @@ export function paintAttach(svg, script, stepIdx, t) {
   svg.style.transform = "scale(1, -1)";
 }
 
-export function paintSettle(svg, script, t, joined) {
+/** Ease morph-fit framing back to the destination's resting metrics. */
+export function paintSettle(svg, script, t, opts = {}) {
+  const joined = !!opts.joined;
+  const from = opts.from;
+
   if (joined && script.joined) {
-    if (t >= 0.999) {
-      paintStatic(svg, script, { joined: true });
-      return;
-    }
-    paintJoin(svg, script, script.slots.length, 1);
-    const metrics = displayMetrics({
-      ...script,
-      slots: [
-        {
-          empty: false,
-          advance: script.joined.advance || 0,
-          bounds: script.joined.bounds || [0, 0, 1, 800],
-        },
-      ],
-    });
-    metrics.width = Math.max(script.joined.advance || metrics.width, 1);
-    const vb = (svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
+    const startM = displayMetrics(script, { isolGap: ISOL_GAP });
+    const endM = joinedMetrics(script);
+    const g = el("g", { className: "script-morph__row" });
+    g.appendChild(
+      el("path", {
+        className:
+          t >= 0.999
+            ? "script-morph__joined"
+            : "script-morph__joined script-morph__slot--settling",
+        d: script.joined.path,
+      })
+    );
     setViewBox(svg, {
-      minY: lerp(vb[1], metrics.minY, t),
-      maxY: lerp(vb[1] + vb[3], metrics.maxY, t),
-      height: lerp(vb[3], metrics.height, t),
-      width: lerp(vb[2], metrics.width, t),
-      tight: metrics.tight,
+      minY: lerp(startM.minY, endM.minY, t),
+      maxY: lerp(startM.maxY, endM.maxY, t),
+      height: lerp(startM.height, endM.height, t),
+      width: lerp(
+        Math.max(startM.width, 1),
+        Math.max(endM.width, 1),
+        t
+      ),
+      tight: endM.tight || startM.tight,
     });
+    svg.replaceChildren(g);
+    svg.style.transform = "scale(1, -1)";
     return;
   }
-  // Keep attach merges through metric settle / final frame.
-  paintStatic(svg, script, { attached: true });
+
+  const applyAttach =
+    opts.attached !== false && script.compose?.mode === "attach";
+  const slots = applyAttach ? resolveAttachedSlots(script) : script.slots;
+  const viewScript = slots === script.slots ? script : { ...script, slots };
+  const endM = displayMetrics(viewScript);
+  const fit = from ? morphToFit(from, viewScript) : null;
+  const startM = fit?.fromM || endM;
+  const scale = fit ? lerp(fit.scale, 1, t) : 1;
+  const dy = fit ? lerp(fit.dy, 0, t) : 0;
+
+  const g = el("g", { className: "script-morph__row" });
+  const ink = el("g", {
+    transform:
+      scale === 1 && dy === 0 ? null : `translate(0, ${dy}) scale(${scale})`,
+  });
+  let x = 0;
+  for (let i = 0; i < slots.length; i++) {
+    const slot = slots[i];
+    if (slot.empty && !(slot.advance > 0)) continue;
+    const resting = el("path", {
+      className:
+        t >= 0.999
+          ? "script-morph__slot"
+          : "script-morph__slot script-morph__slot--settling",
+      d: slotPath(slot),
+      transform: `translate(${x}, 0)`,
+      "data-slot": i,
+    });
+    if (t < 0.999) {
+      const tint = el("path", {
+        className: "script-morph__slot script-morph__slot--to",
+        d: slotPath(slot),
+        transform: `translate(${x}, 0)`,
+        "data-slot": i,
+      });
+      tint.style.opacity = String(1 - t);
+      resting.style.opacity = String(t);
+      ink.appendChild(tint);
+    }
+    ink.appendChild(resting);
+    x += slot.advance || 0;
+  }
+  g.appendChild(ink);
+
+  const startWidth = fit
+    ? Math.max(startM.width, endM.width * fit.scale, 1)
+    : Math.max(endM.width, 1);
+  setViewBox(svg, {
+    minY: lerp(startM.minY, endM.minY, t),
+    maxY: lerp(startM.maxY, endM.maxY, t),
+    height: lerp(startM.height, endM.height, t),
+    width: lerp(startWidth, Math.max(endM.width, x, 1), t),
+    tight: !!(endM.tight || startM.tight),
+  });
+  svg.replaceChildren(g);
+  svg.style.transform = "scale(1, -1)";
 }

@@ -278,6 +278,12 @@ export function paintMorph(svg, state) {
     const atomTs =
       atomProgress?.[logical] ||
       (changed ? [t] : [1]);
+    const atomsDone = atomTs.every((v) => v >= 0.999);
+    // No matra/combine on B: once atoms land, flip to the "done" color (CLS_TO)
+    // like a finished combine — otherwise a lone letter can stay stuck on the
+    // base/--from tint when the other side padded a matra column.
+    const slotComplete =
+      changed && atomsDone && (!needsCombine || combine >= 0.999);
 
     // Leave-A detach: composed → consonant (--from) + anusvāra (--to).
     if (fromBase && detachT < 0.999 && changed) {
@@ -381,7 +387,7 @@ export function paintMorph(svg, state) {
       });
       markPath.style.opacity = String(1 - attachT);
       slotG.appendChild(markPath);
-    } else if (!changed || (needsCombine && combine >= 0.999)) {
+    } else if (!changed || slotComplete) {
       const pathTo = el("path", {
         className: changed ? CLS_TO : "script-morph__slot",
         d: slotPath(displayB),
