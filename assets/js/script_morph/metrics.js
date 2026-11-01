@@ -51,10 +51,12 @@ export function displayMetrics(script, opts = {}) {
 
 export function setViewBox(svg, metrics) {
   const pad = metrics.height * (metrics.tight ? 0.04 : 0.1);
-  svg.setAttribute(
-    "viewBox",
-    `0 ${metrics.minY - pad} ${Math.max(metrics.width, 1)} ${metrics.height + pad * 2}`
-  );
+  const vbW = Math.max(metrics.width, 1);
+  const vbH = metrics.height + pad * 2;
+  svg.setAttribute("viewBox", `0 ${metrics.minY - pad} ${vbW} ${vbH}`);
+  // Keep intrinsic ratio in sync so CSS width:auto shrinks after a wide→narrow morph.
+  svg.setAttribute("width", String(vbW));
+  svg.setAttribute("height", String(vbH));
 }
 
 /** Fit `to` into `from`'s em so the outgoing script doesn't resize mid-morph. */
