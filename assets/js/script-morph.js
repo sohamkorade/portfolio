@@ -13,6 +13,19 @@
   const REVERSE_MS = 1100;
   const JOIN_STEP_MS = 1400; // per-letter combine into cursive (slow)
   const JOIN_GAP_MS = 220;
+  const COMPACT_SPEED = 0.42; // non-fullscreen morphs run faster
+  /** Compact widget cycles only these; fullscreen chooser keeps the full carousel. */
+  const COMPACT_SCRIPTS = [
+    "latin",
+    "devanagari",
+    "bengali",
+    "kannada",
+    "telugu",
+    "malayalam",
+    "tamil",
+    "katakana",
+    "urdu",
+  ];
   const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function pointsToPath(points) {
@@ -66,8 +79,30 @@
     return { minY, maxY, width, height: Math.max(maxY - minY, 1) };
   }
 
+  /**
+   * View-box metrics for display. Nastaliq's tall diagonals would otherwise shrink
+   * the whole name — frame a mid body band and let extrema overshoot (overflow visible).
+   */
+  const ARABIC_DISPLAY_EM = 960;
+  function displayMetrics(script, opts = {}) {
+    const m = slotBounds(script, opts);
+    if (script.family !== "arabic") return m;
+    const inkCy = (m.minY + m.maxY) / 2;
+    // Bias slightly upward: Nastaliq often hangs more below the body.
+    const cy = inkCy + m.height * 0.06;
+    const h = ARABIC_DISPLAY_EM;
+    return {
+      minY: cy - h / 2,
+      maxY: cy + h / 2,
+      height: h,
+      width: m.width,
+      tight: true,
+    };
+  }
+
   function setViewBox(svg, metrics) {
-    const pad = metrics.height * 0.12;
+    // Less pad for optically-framed Arabic so the body stays large in the h1 em.
+    const pad = metrics.height * (metrics.tight ? 0.04 : 0.1);
     svg.setAttribute(
       "viewBox",
       `0 ${metrics.minY - pad} ${Math.max(metrics.width, 1)} ${metrics.height + pad * 2}`
@@ -79,8 +114,8 @@
    * Keeps the from script from appearing to resize when scripts have different extents.
    */
   function morphToFit(from, to) {
-    const fromM = slotBounds(from);
-    const toM = slotBounds(to);
+    const fromM = displayMetrics(from);
+    const toM = displayMetrics(to);
     const scale = toM.height > 0 ? fromM.height / toM.height : 1;
     const fromCy = (fromM.minY + fromM.maxY) / 2;
     const toCy = ((toM.minY + toM.maxY) / 2) * scale;
@@ -106,14 +141,32 @@
       this.label = host.querySelector(".script-morph-label");
       this.data = data;
       this.carousel = data.carousel.filter((id) => scriptById(data, id));
+      this.compactCarousel = COMPACT_SCRIPTS.filter((id) =>
+        this.carousel.includes(id)
+      );
       this.index = this._loadIndex();
       this.animating = false;
       this.active = false;
       this.fullscreen = false;
       this._animToken = 0;
       this._animTimers = [];
+      this._paused = false;
+      this._playing = true;
+      this._timeline = null;
+      this._playheadMs = 0;
+      this._phaseStartMs = 0;
+      this._ffUntil = null;
+      this._transitionFromId = null;
+      this._transitionToId = null;
+      this._seeking = false;
       this._build();
       this._bind();
+    }
+
+    /** Duration scaled for compact vs fullscreen. */
+    _ms(base) {
+      if (!base) return 0;
+      return this.fullscreen ? base : Math.max(40, base * COMPACT_SPEED);
     }
 
     /** Start a new animation generation; invalidates any in-flight work. */
@@ -121,6 +174,9 @@
       this._clearAnimTimers();
       this._animToken += 1;
       this.animating = true;
+      this._paused = false;
+      this._playing = true;
+      this._syncPlayButton();
       return this._animToken;
     }
 
@@ -130,6 +186,7 @@
       this.animating = false;
       this._clearAnimTimers();
       this._setPhase("");
+      this._ffUntil = null;
     }
 
     _clearAnimTimers() {
@@ -141,14 +198,111 @@
       return this.active && token === this._animToken;
     }
 
-    /** Token-aware delay; resolves false if cancelled. */
+    /**
+     * Token-aware delay; pauses when transport is paused; resolves false if cancelled.
+     * Advances the fullscreen playhead while waiting.
+     */
     _wait(token, ms) {
+      const dur = this._ms(ms);
       return new Promise((resolve) => {
-        const id = setTimeout(() => {
-          this._animTimers = this._animTimers.filter((t) => t !== id);
-          resolve(this._still(token));
-        }, ms);
-        this._animTimers.push(id);
+        if (this._ffUntil != null) {
+          const end = this._phaseStartMs + dur;
+          if (this._ffUntil >= end) {
+            this._playheadMs = end;
+            this._phaseStartMs = end;
+            this._syncTransport();
+            resolve(this._still(token));
+            return;
+          }
+        }
+        let elapsed = 0;
+        let last = performance.now();
+        const tick = (now) => {
+          if (!this._still(token)) {
+            resolve(false);
+            return;
+          }
+          if (this._paused) {
+            last = now;
+            this._raf(token, tick);
+            return;
+          }
+          const dt = now - last;
+          last = now;
+          elapsed += dt;
+          this._playheadMs = this._phaseStartMs + Math.min(elapsed, dur);
+          this._syncTransport();
+          if (elapsed >= dur) {
+            this._phaseStartMs += dur;
+            this._playheadMs = this._phaseStartMs;
+            this._syncTransport();
+            resolve(true);
+            return;
+          }
+          this._raf(token, tick);
+        };
+        this._raf(token, tick);
+      });
+    }
+
+    /**
+     * Pause-aware progress animation 0→1. onProgress(eased, raw).
+     * Honors fast-forward seek targets.
+     */
+    _animate(token, ms, onProgress) {
+      const dur = Math.max(1, this._ms(ms));
+      return new Promise((resolve) => {
+        if (!this._still(token)) {
+          resolve(false);
+          return;
+        }
+        const phaseStart = this._phaseStartMs;
+        const phaseEnd = phaseStart + dur;
+
+        if (this._ffUntil != null && this._ffUntil >= phaseEnd) {
+          onProgress(1, 1);
+          this._phaseStartMs = phaseEnd;
+          this._playheadMs = phaseEnd;
+          this._syncTransport();
+          resolve(true);
+          return;
+        }
+
+        let elapsed = 0;
+        if (this._ffUntil != null && this._ffUntil > phaseStart) {
+          elapsed = Math.min(dur, this._ffUntil - phaseStart);
+          this._ffUntil = null;
+          const raw0 = elapsed / dur;
+          onProgress(easeInOut(raw0), raw0);
+        }
+
+        let last = performance.now();
+        const frame = (now) => {
+          if (!this._still(token)) {
+            resolve(false);
+            return;
+          }
+          if (this._paused) {
+            last = now;
+            this._raf(token, frame);
+            return;
+          }
+          elapsed += now - last;
+          last = now;
+          const raw = Math.min(1, elapsed / dur);
+          onProgress(easeInOut(raw), raw);
+          this._playheadMs = phaseStart + elapsed;
+          this._syncTransport();
+          if (raw < 1) {
+            this._raf(token, frame);
+            return;
+          }
+          this._phaseStartMs = phaseEnd;
+          this._playheadMs = phaseEnd;
+          this._syncTransport();
+          resolve(true);
+        };
+        this._raf(token, frame);
       });
     }
 
@@ -158,6 +312,18 @@
         if (!this._still(token)) return;
         fn(now);
       });
+    }
+
+    _beginPhase(label, estimatedMs) {
+      this._setPhase(label);
+      if (this._timeline && estimatedMs != null) {
+        // Keep playhead within the active segment when phases re-enter.
+        const seg = this._timeline.segments.find(
+          (s) => s.label === label && this._playheadMs + 1 >= s.start && this._playheadMs <= s.end + 1
+        ) || this._timeline.segments.find((s) => s.label === label && this._playheadMs <= s.end);
+        if (seg) this._phaseStartMs = Math.max(this._phaseStartMs, seg.start);
+      }
+      this._syncTransport();
     }
 
     _loadIndex() {
@@ -186,6 +352,7 @@
           <span class="script-morph__live sr-only" aria-live="polite"></span>
         </div>
         <button type="button" class="script-morph__btn script-morph__btn--next" aria-label="Next script">›</button>
+        <span class="script-morph__script-name" aria-live="polite"></span>
         <button type="button" class="script-morph__btn script-morph__btn--fullscreen" aria-label="Expand script morph">⛶</button>
         <button type="button" class="script-morph__btn script-morph__btn--exit" aria-label="Close script morph">×</button>
         <span class="script-morph__phase" aria-live="polite" hidden></span>
@@ -195,6 +362,7 @@
       this.stage = this.root.querySelector(".script-morph__stage");
       this.svg = this.root.querySelector(".script-morph__svg");
       this.live = this.root.querySelector(".script-morph__live");
+      this.scriptNameEl = this.root.querySelector(".script-morph__script-name");
       this.phaseEl = this.root.querySelector(".script-morph__phase");
       this.btnPrev = this.root.querySelector(".script-morph__btn--prev");
       this.btnNext = this.root.querySelector(".script-morph__btn--next");
@@ -202,15 +370,193 @@
       this.btnExit = this.root.querySelector(".script-morph__btn--exit");
     }
 
+    /** Compact cycles a short list; fullscreen uses the full carousel. */
+    _navList() {
+      return this.fullscreen ? this.carousel : this.compactCarousel;
+    }
+
+    _syncScriptName(script) {
+      const s = script || scriptById(this.data, this.carousel[this.index]);
+      if (!this.scriptNameEl) return;
+      this.scriptNameEl.textContent = s ? s.label : "";
+    }
+
     _setPhase(term) {
       if (!this.phaseEl) return;
-      if (!term) {
+      // Phase labels are fullscreen-only (compact widget stays quiet).
+      if (!term || !this.fullscreen) {
         this.phaseEl.hidden = true;
         this.phaseEl.textContent = "";
         return;
       }
       this.phaseEl.hidden = false;
       this.phaseEl.textContent = term;
+      this._highlightTimelineSegment(term);
+    }
+
+    _countChangedSlots(a, b) {
+      if (!a || !b || !a.slots || !b.slots) return 0;
+      let n = 0;
+      for (let i = 0; i < a.slots.length; i++) {
+        if (!slotsEqual(a.slots[i], b.slots[i])) n += 1;
+      }
+      return n;
+    }
+
+    _morphDurationMs(from, to, opts = {}) {
+      const changed = this._countChangedSlots(from, to);
+      const slotMs = opts.duration || SLOT_MORPH_MS;
+      const prep = opts.sameScript ? 0 : SLOT_PREP_MS;
+      const gaps = Math.max(0, changed - 1) * SLOT_GAP_MS;
+      return prep + changed * slotMs + gaps;
+    }
+
+    /** Build a seekable phase timeline for the from→to transition. */
+    _planTimeline(from, to) {
+      const segments = [];
+      let t = 0;
+      const add = (id, label, baseMs) => {
+        const duration = this._ms(baseMs);
+        segments.push({ id, label, start: t, end: t + duration, duration, baseMs });
+        t += duration;
+      };
+
+      let morphFrom = from;
+      if (from.id === "latin" && from.slots_lower) {
+        add("case-out", "Case folding", this._morphDurationMs(from, { ...from, slots: from.slots_lower }, { duration: CASE_MS, sameScript: true }));
+        morphFrom = { ...from, slots: from.slots_lower };
+      }
+
+      let morphTo = to;
+      const enteringLatin = to.id === "latin" && to.slots_lower;
+      if (enteringLatin) morphTo = { ...to, slots: to.slots_lower };
+
+      const enteringCursive = to.compose && to.compose.mode === "cursive";
+      const leavingCursive = from.compose && from.compose.mode === "cursive";
+
+      if (enteringCursive) {
+        add("reverse", "Reading-order reversal", REVERSE_MS);
+        add("morph", "Grapheme correspondence", this._morphDurationMs(morphFrom, morphTo));
+        add("spread", "Isolation spacing", SPREAD_MS);
+        const joinSteps = (to.join_steps || []).length || to.slots.length;
+        add(
+          "join",
+          to.compose.term || "Cursive joining",
+          joinSteps * JOIN_STEP_MS + Math.max(0, joinSteps - 1) * JOIN_GAP_MS
+        );
+      } else if (leavingCursive) {
+        add("segregate", "Cursive segregation", 80);
+        add("morph", "Grapheme correspondence", this._morphDurationMs(morphFrom, morphTo));
+        add("unreverse", "Reading-order reversal", REVERSE_MS);
+      } else {
+        add("morph", "Grapheme correspondence", this._morphDurationMs(morphFrom, morphTo));
+      }
+
+      if (to.compose && to.compose.mode === "attach") {
+        const steps = (to.compose.steps || []).length || 1;
+        add(
+          "attach",
+          (to.compose.steps && to.compose.steps[0] && to.compose.steps[0].term) ||
+            to.compose.term ||
+            "Mark attachment",
+          steps * JOIN_STEP_MS
+        );
+      }
+
+      if (enteringLatin) {
+        add(
+          "case-in",
+          "Case folding",
+          this._morphDurationMs(
+            { ...to, slots: to.slots_lower },
+            to,
+            { duration: CASE_MS, sameScript: true }
+          )
+        );
+      }
+
+      add("settle", "Metric settling", SETTLE_MS);
+      return { segments, total: Math.max(t, 1) };
+    }
+
+    _installTimeline(plan) {
+      this._timeline = plan;
+      this._playheadMs = 0;
+      this._phaseStartMs = 0;
+      if (!this.transportEl || !this.seekEl) return;
+      this.seekEl.max = String(plan.total);
+      this.seekEl.value = "0";
+      const marks = this.transportEl.querySelector(".script-morph__markers");
+      if (marks) {
+        marks.innerHTML = plan.segments
+          .map((s) => {
+            const pct = (s.start / plan.total) * 100;
+            return `<button type="button" class="script-morph__marker" data-ms="${s.start}" data-label="${s.label}" style="left:${pct}%" title="${s.label}" aria-label="${s.label}"></button>`;
+          })
+          .join("");
+      }
+      this._syncTransport();
+    }
+
+    _syncTransport() {
+      if (!this.seekEl || !this._timeline) return;
+      if (this._seeking) return;
+      this.seekEl.value = String(Math.min(this._playheadMs, this._timeline.total));
+    }
+
+    _syncPlayButton() {
+      if (!this.playBtn) return;
+      const paused = this._paused || !this._playing;
+      this.playBtn.textContent = paused ? "▶" : "❚❚";
+      this.playBtn.setAttribute("aria-label", paused ? "Play" : "Pause");
+    }
+
+    _highlightTimelineSegment(label) {
+      if (!this.transportEl) return;
+      this.transportEl.querySelectorAll(".script-morph__marker").forEach((el) => {
+        el.classList.toggle("is-active", el.getAttribute("data-label") === label);
+      });
+    }
+
+    _togglePlayPause() {
+      if (!this.fullscreen) return;
+      if (!this.animating) {
+        // Replay current transition if idle.
+        if (this._transitionFromId && this._transitionToId) {
+          this._playing = true;
+          this._paused = false;
+          this._syncPlayButton();
+          this._restartTransition(0);
+        }
+        return;
+      }
+      this._paused = !this._paused;
+      this._playing = !this._paused;
+      this._syncPlayButton();
+    }
+
+    _restartTransition(seekMs) {
+      const fromId = this._transitionFromId;
+      const toId = this._transitionToId;
+      if (!fromId || !toId) return;
+      this._cancelAnimation();
+      this._snapScript(fromId, false);
+      this._ffUntil = Math.max(0, seekMs || 0);
+      this._playheadMs = this._ffUntil;
+      this._phaseStartMs = 0;
+      this._paused = false;
+      this._playing = true;
+      this._syncPlayButton();
+      this._transition(fromId, toId);
+    }
+
+    _onSeekInput(ms, commit) {
+      if (!this._timeline) return;
+      const clamped = Math.max(0, Math.min(this._timeline.total, ms));
+      this._playheadMs = clamped;
+      if (!commit) return;
+      this._seeking = false;
+      this._restartTransition(clamped);
     }
 
     _bind() {
@@ -293,8 +639,14 @@
 
     step(delta) {
       if (!this.active) return;
-      const next = (this.index + delta + this.carousel.length) % this.carousel.length;
-      this.goTo(next);
+      const list = this._navList();
+      if (!list.length) return;
+      const currentId = this.carousel[this.index];
+      let pos = list.indexOf(currentId);
+      // If viewing a fullscreen-only script while compact, start from the first compact entry.
+      if (pos < 0) pos = delta > 0 ? -1 : 0;
+      const nextId = list[(pos + delta + list.length) % list.length];
+      this.goToScriptId(nextId);
     }
 
     goTo(nextIndex) {
@@ -318,6 +670,7 @@
       this.index = nextIndex;
       this._saveIndex();
       this._syncChooser();
+      this._syncScriptName(scriptById(this.data, toId));
       this._transition(fromId, toId);
     }
 
@@ -337,6 +690,7 @@
 
     _announce(script) {
       this.live.textContent = script.label;
+      this._syncScriptName(script);
     }
 
     _renderScript(scriptId, announce = true, opts = {}) {
@@ -350,12 +704,18 @@
 
       if (useJoined) {
         const jm = script.joined;
-        const pad = 40;
-        const b = jm.bounds || [0, 0, jm.advance || 1, 800];
-        this.svg.setAttribute(
-          "viewBox",
-          `0 ${b[1] - pad} ${Math.max(jm.advance || b[2] - b[0], 1) + pad * 2} ${Math.max(b[3] - b[1], 1) + pad * 2}`
-        );
+        const metrics = displayMetrics({
+          ...script,
+          slots: [
+            {
+              empty: false,
+              advance: jm.advance || 0,
+              bounds: jm.bounds || [0, 0, jm.advance || 1, 800],
+            },
+          ],
+        });
+        metrics.width = Math.max(jm.advance || metrics.width, 1);
+        setViewBox(this.svg, metrics);
         const joined = document.createElementNS("http://www.w3.org/2000/svg", "path");
         joined.classList.add("script-morph__joined");
         joined.setAttribute("d", jm.path);
@@ -364,7 +724,7 @@
         const order = reversed
           ? script.slots.map((_, i) => script.slots.length - 1 - i)
           : script.slots.map((_, i) => i);
-        const metrics = slotBounds(script);
+        const metrics = displayMetrics(script);
         setViewBox(this.svg, metrics);
 
         // Extra tracking for joining scripts so isolated letters read as separate
@@ -403,7 +763,17 @@
         return;
       }
 
+      this._transitionFromId = fromId;
+      this._transitionToId = toId;
+      const plan = this._planTimeline(from, to);
+      this._installTimeline(plan);
+
       const token = this._beginAnim();
+      // Preserve seek target across beginAnim reset of pause flags.
+      if (this._ffUntil != null) {
+        this._playheadMs = this._ffUntil;
+        this._syncTransport();
+      }
       const enteringCursive =
         to.compose && to.compose.mode === "cursive";
       const leavingCursive =
@@ -412,7 +782,7 @@
         // Lowercase English before leaving it.
         let morphFrom = from;
         if (from.id === "latin" && from.slots_lower) {
-          this._setPhase("Case folding");
+          this._beginPhase("Case folding");
           await this._caseFold(from, /*toLower=*/ true, token);
           if (!this._still(token)) return;
           morphFrom = { ...from, slots: from.slots_lower };
@@ -429,7 +799,7 @@
           await this._cursiveTransition(morphFrom, morphTo, token);
           if (!this._still(token)) return;
         } else {
-          this._setPhase("Grapheme correspondence");
+          this._beginPhase("Grapheme correspondence");
           const hops = resolvePath(this.data, fromId, toId);
           for (let i = 1; i < hops.length; i++) {
             const a = i === 1 ? morphFrom : scriptById(this.data, hops[i - 1]);
@@ -447,23 +817,28 @@
         }
 
         if (enteringLatin) {
-          this._setPhase("Case folding");
+          this._beginPhase("Case folding");
           await this._caseFold(to, /*toLower=*/ false, token);
           if (!this._still(token)) return;
         }
 
         // One final metric settle: collapse slot scaffolding into continuous text.
+        this._beginPhase("Metric settling");
         await this._settleMetrics(to, token);
         if (!this._still(token)) return;
 
         this._setPhase("");
+        this._playheadMs = plan.total;
+        this._syncTransport();
         this.root.dataset.script = toId;
         this.root.dataset.dir = to.dir;
         this._announce(to);
       } finally {
         if (this._animToken === token) {
           this.animating = false;
+          this._ffUntil = null;
           this._setPhase("");
+          this._syncPlayButton();
         }
       }
     }
@@ -484,6 +859,7 @@
         sameScript: true,
         settle: false,
         token,
+        skipPrep: true,
       });
     }
 
@@ -503,7 +879,9 @@
         }
         const n = from.slots.length;
         const fromGap = from.family === "arabic" ? 120 : 0;
-        const slotMs = opts.duration || SLOT_MORPH_MS;
+        const slotMs = this._ms(opts.duration || SLOT_MORPH_MS);
+        const gapMs = this._ms(SLOT_GAP_MS);
+        const prepMs = this._ms(SLOT_PREP_MS);
         const doSettle = opts.settle === true;
         const logicalAt = (visual) => (reversed ? n - 1 - visual : visual);
         // Fit `to` into `from`'s em so the outgoing script doesn't resize mid-morph.
@@ -512,6 +890,21 @@
           : morphToFit(from, to);
         const toScale = fit.scale;
         const toDy = fit.dy;
+
+        // Fast-forward: skip whole morph when seek is past this segment.
+        const estBase = this._morphDurationMs(from, to, opts);
+        const est = this._ms(estBase);
+        if (this._ffUntil != null && this._ffUntil >= this._phaseStartMs + est) {
+          this._renderScript(to.id, false, {
+            joined: false,
+            reversed: !!reversed,
+          });
+          this._phaseStartMs += est;
+          this._playheadMs = this._phaseStartMs;
+          this._syncTransport();
+          resolve();
+          return;
+        }
 
         // Build dual-path slot groups once (accurate outlines).
         const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
@@ -626,12 +1019,14 @@
           maxY: fit.fromM.maxY,
           height: fit.fromM.height,
           width: Math.max(fit.fromM.width, startX, 1),
+          tight: !!fit.fromM.tight,
         };
         const endMetrics = {
           minY: fit.fromM.minY,
           maxY: fit.fromM.maxY,
           height: fit.fromM.height,
           width: Math.max(fit.fromM.width, endX, 1),
+          tight: !!fit.fromM.tight,
         };
         setViewBox(this.svg, startMetrics);
 
@@ -644,6 +1039,8 @@
 
         let step = 0;
         let stepStarted = performance.now();
+        let pauseAnchor = 0;
+        const morphPhaseOrigin = this._phaseStartMs;
 
         const paint = () => {
           groups.forEach((item, visual) => {
@@ -707,6 +1104,7 @@
           }
           step = 0;
           stepStarted = performance.now();
+          pauseAnchor = 0;
           this._raf(token, morphFrame);
         };
 
@@ -714,6 +1112,15 @@
           if (!this._still(token)) {
             resolve();
             return;
+          }
+          if (this._paused) {
+            if (!pauseAnchor) pauseAnchor = now;
+            this._raf(token, morphFrame);
+            return;
+          }
+          if (pauseAnchor) {
+            stepStarted += now - pauseAnchor;
+            pauseAnchor = 0;
           }
           if (step >= visualOrder.length) {
             paint();
@@ -724,6 +1131,13 @@
           const local = Math.min(1, Math.max(0, (now - stepStarted) / slotMs));
           progress[visual] = easeInOut(local);
           paint();
+          const doneSteps = step;
+          this._playheadMs =
+            morphPhaseOrigin +
+            (needsSlotPrep && !opts.skipPrep ? prepMs : 0) +
+            doneSteps * (slotMs + gapMs) +
+            local * slotMs;
+          this._syncTransport();
           if (local < 1) {
             this._raf(token, morphFrame);
             return;
@@ -732,17 +1146,43 @@
           step += 1;
           if (step >= visualOrder.length) {
             paint();
+            this._phaseStartMs = morphPhaseOrigin + est;
+            this._playheadMs = this._phaseStartMs;
+            this._syncTransport();
             finishMorph();
             return;
           }
-          this._wait(token, SLOT_GAP_MS).then((ok) => {
-            if (!ok) {
+          // Gap between slots (pause-aware).
+          let gapElapsed = 0;
+          let gapLast = performance.now();
+          const gapFrame = (gNow) => {
+            if (!this._still(token)) {
               resolve();
               return;
             }
+            if (this._paused) {
+              gapLast = gNow;
+              this._raf(token, gapFrame);
+              return;
+            }
+            gapElapsed += gNow - gapLast;
+            gapLast = gNow;
+            this._playheadMs =
+              morphPhaseOrigin +
+              (needsSlotPrep && !opts.skipPrep ? prepMs : 0) +
+              step * slotMs +
+              (step - 1) * gapMs +
+              Math.min(gapElapsed, gapMs);
+            this._syncTransport();
+            if (gapElapsed < gapMs) {
+              this._raf(token, gapFrame);
+              return;
+            }
             stepStarted = performance.now();
+            pauseAnchor = 0;
             this._raf(token, morphFrame);
-          });
+          };
+          this._raf(token, gapFrame);
         };
 
         /** Ease from continuous packing into to-sized slot cells, then morph. */
@@ -751,7 +1191,7 @@
             resolve();
             return;
           }
-          if (!needsSlotPrep) {
+          if (!needsSlotPrep || opts.skipPrep) {
             groups.forEach((item) => {
               item.fixedX = item.endX;
               item.slotG.setAttribute("transform", `translate(${item.endX}, 0)`);
@@ -770,17 +1210,30 @@
             return;
           }
 
-          const prevPhase = this.phaseEl && !this.phaseEl.hidden
-            ? this.phaseEl.textContent
-            : "";
-          this._setPhase("Slot alignment");
-          const t0 = performance.now();
+          const prevPhase =
+            this.phaseEl && !this.phaseEl.hidden ? this.phaseEl.textContent : "";
+          if (this.fullscreen) this._setPhase("Slot alignment");
+          let prepElapsed = 0;
+          let prepLast = performance.now();
+          let prepPause = 0;
           const prepFrame = (now) => {
             if (!this._still(token)) {
               resolve();
               return;
             }
-            const t = easeInOut(Math.min(1, (now - t0) / SLOT_PREP_MS));
+            if (this._paused) {
+              if (!prepPause) prepPause = now;
+              this._raf(token, prepFrame);
+              return;
+            }
+            if (prepPause) {
+              prepLast += now - prepPause;
+              prepPause = 0;
+            }
+            prepElapsed += now - prepLast;
+            prepLast = now;
+            const raw = Math.min(1, prepElapsed / prepMs);
+            const t = easeInOut(raw);
             groups.forEach((item) => {
               const x = item.startX + (item.endX - item.startX) * t;
               const cellW =
@@ -808,7 +1261,9 @@
               height: endMetrics.height,
               width,
             });
-            if (t < 1) {
+            this._playheadMs = morphPhaseOrigin + prepElapsed;
+            this._syncTransport();
+            if (raw < 1) {
               this._raf(token, prepFrame);
               return;
             }
@@ -830,7 +1285,9 @@
               resolve();
               return;
             }
-            this._setPhase(prevPhase || "Grapheme correspondence");
+            if (this.fullscreen) {
+              this._setPhase(prevPhase || "Grapheme correspondence");
+            }
             startMorphFrames();
           };
           this._raf(token, prepFrame);
@@ -939,7 +1396,7 @@
       }
 
       return new Promise((resolve) => {
-        this._setPhase("Metric settling");
+        this._beginPhase("Metric settling");
 
         let minY = Infinity;
         let maxY = -Infinity;
@@ -957,16 +1414,24 @@
           }
         });
         if (!isFinite(minY)) {
-          const m = slotBounds(script);
+          const m = displayMetrics(script);
           minY = m.minY;
           maxY = m.maxY;
         }
-        const endMetrics = {
+        let endMetrics = {
           minY,
           maxY,
           width: Math.max(tx, 1),
           height: Math.max(maxY - minY, 1),
         };
+        // Prefer optical framing for Arabic so settle doesn't shrink the name.
+        if (script.family === "arabic") {
+          const optical = displayMetrics(script);
+          endMetrics = {
+            ...optical,
+            width: Math.max(tx, optical.width, 1),
+          };
+        }
 
         const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
         const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
@@ -976,13 +1441,7 @@
           if (item.box) item.box.classList.remove("is-active");
         });
 
-        const t0 = performance.now();
-        const settleFrame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / SETTLE_MS));
+        this._animate(token, SETTLE_MS, (t) => {
           items.forEach((item) => {
             const x = item.startX + (item.endX - item.startX) * t;
             const cellW = item.startCellW + (item.endCellW - item.startCellW) * t;
@@ -1007,12 +1466,11 @@
           const minYv = startVB.minY + (endMetrics.minY - startVB.minY) * t;
           const height = startVB.height + (endMetrics.height - startVB.height) * t;
           setViewBox(this.svg, { minY: minYv, maxY: minYv + height, width, height });
-
-          if (t < 1) {
-            this._raf(token, settleFrame);
+        }).then((ok) => {
+          if (!ok) {
+            resolve();
             return;
           }
-
           items.forEach((item) => {
             if (item.box) item.box.remove();
             if (item.path) {
@@ -1033,8 +1491,7 @@
           });
           setViewBox(this.svg, endMetrics);
           resolve();
-        };
-        this._raf(token, settleFrame);
+        });
       });
     }
 
@@ -1070,12 +1527,20 @@
         const isol = [...row.querySelectorAll(".script-morph__slot")];
         const hasIsol = isol.some((el) => parseFloat(el.style.opacity || "1") > 0.05);
         const vb = (this.svg.getAttribute("viewBox") || "0 0 1 1").split(/\s+/).map(Number);
-        const endMetrics = {
-          minY: joined.bounds[1],
-          maxY: joined.bounds[3],
-          width: Math.max(joined.advance || joined.bounds[2] - joined.bounds[0], 1),
-          height: Math.max(joined.bounds[3] - joined.bounds[1], 1),
-        };
+        const endMetrics = displayMetrics({
+          ...script,
+          slots: [
+            {
+              empty: false,
+              advance: joined.advance || 0,
+              bounds: joined.bounds || [0, 0, 1, 800],
+            },
+          ],
+        });
+        endMetrics.width = Math.max(
+          joined.advance || endMetrics.width,
+          1
+        );
         const startVB = { minY: vb[1], width: vb[2], height: vb[3] };
         const needsVB =
           Math.abs(startVB.width - endMetrics.width) > 1 ||
@@ -1088,24 +1553,17 @@
           return;
         }
 
-        this._setPhase("Metric settling");
+        this._beginPhase("Metric settling");
         const jm = /translate\(([-\d.]+)/.exec(finalJoined.getAttribute("transform") || "");
         const startX = jm ? parseFloat(jm[1]) : 0;
         const endX = 0;
 
-        const t0 = performance.now();
-        const frame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / SETTLE_MS));
+        this._animate(token, SETTLE_MS, (t) => {
           isol.forEach((el) => {
             el.style.opacity = String(
               Math.max(0, parseFloat(el.style.opacity || "1") * (1 - t))
             );
           });
-          // Keep secondary joined fades out; primary eases to x=0.
           finalJoined.style.opacity = "1";
           finalJoined.setAttribute(
             "transform",
@@ -1115,14 +1573,10 @@
           const minY = startVB.minY + (endMetrics.minY - startVB.minY) * t;
           const height = startVB.height + (endMetrics.height - startVB.height) * t;
           setViewBox(this.svg, { minY, maxY: minY + height, width, height });
-          if (t < 1) {
-            this._raf(token, frame);
-            return;
-          }
-          this._renderScript(script.id, false, { joined: true });
+        }).then((ok) => {
+          if (ok) this._renderScript(script.id, false, { joined: true });
           resolve();
-        };
-        this._raf(token, frame);
+        });
       });
     }
 
@@ -1149,28 +1603,19 @@
           x += script.slots[logical].advance || 0;
         }
 
-        setViewBox(this.svg, slotBounds(script));
-        const t0 = performance.now();
-
-        const frame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / duration));
+        setViewBox(this.svg, displayMetrics(script));
+        this._animate(token, duration, (t) => {
           paths.forEach((el) => {
             const i = parseInt(el.dataset.slot, 10);
             const xNow = fromXs[i] + (toXs[i] - fromXs[i]) * t;
             el.setAttribute("transform", `translate(${xNow}, 0)`);
           });
-          if (t < 1) this._raf(token, frame);
-          else {
-            // Rebuild reversed without touching camera if locked
+        }).then((ok) => {
+          if (ok) {
             this._renderScript(script.id, false, { joined: false, reversed: true });
-            resolve();
           }
-        };
-        this._raf(token, frame);
+          resolve();
+        });
         void width;
       });
     }
@@ -1196,27 +1641,19 @@
           x += script.slots[logical].advance || 0;
         }
 
-        setViewBox(this.svg, slotBounds(script));
-        const t0 = performance.now();
-
-        const frame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / duration));
+        setViewBox(this.svg, displayMetrics(script));
+        this._animate(token, duration, (t) => {
           paths.forEach((el) => {
             const i = parseInt(el.dataset.slot, 10);
             const xNow = fromXs[i] + (ltrXs[i] - fromXs[i]) * t;
             el.setAttribute("transform", `translate(${xNow}, 0)`);
           });
-          if (t < 1) this._raf(token, frame);
-          else {
+        }).then((ok) => {
+          if (ok) {
             this._renderScript(script.id, false, { joined: false, reversed: false });
-            resolve();
           }
-        };
-        this._raf(token, frame);
+          resolve();
+        });
       });
     }
 
@@ -1239,7 +1676,7 @@
           endXs[logical] = xCursor;
           xCursor += (script.slots[logical].advance || 0) + isolGap;
         }
-        const endMetrics = slotBounds(script);
+        const endMetrics = displayMetrics(script);
         endMetrics.width = Math.max(endMetrics.width, xCursor, 1);
 
         const row = this.svg.querySelector(".script-morph__row");
@@ -1339,13 +1776,7 @@
         });
         if (row) row.classList.add("script-morph__row--joining");
 
-        const t0 = performance.now();
-        const frame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / SPREAD_MS));
+        this._animate(token, SPREAD_MS, (t) => {
           items.forEach((item) => {
             const x = item.startX + (item.endX - item.startX) * t;
             const cellW =
@@ -1377,15 +1808,10 @@
             width,
             height,
           });
-          if (t < 1) {
-            this._raf(token, frame);
-            return;
-          }
-          // Positions now match isol layout — rebuild clean join DOM in place.
-          this._renderIsolatedForJoin(script);
+        }).then((ok) => {
+          if (ok) this._renderIsolatedForJoin(script);
           resolve();
-        };
-        this._raf(token, frame);
+        });
       });
     }
 
@@ -1408,7 +1834,7 @@
       }
       this.svg.replaceChildren(g);
       this.svg.style.transform = "scale(1, -1)";
-      setViewBox(this.svg, slotBounds(script));
+      setViewBox(this.svg, displayMetrics(script));
     }
 
     /**
@@ -1496,8 +1922,8 @@
         g.appendChild(joinedB);
         this.svg.style.transform = "scale(1, -1)";
 
-        // Freeze the wide isolated frame for the whole combine — no recentering.
-        const lockedMetrics = slotBounds(script);
+        // Freeze the optically-framed isolated layout for the whole combine.
+        const lockedMetrics = displayMetrics(script);
         setViewBox(this.svg, lockedMetrics);
 
         // Anchor the joined cluster's RIGHT edge so it grows leftward (RTL)
@@ -1555,8 +1981,8 @@
 
         paint(0, 0);
         let step = 0;
-        let stepStarted = performance.now();
-        const frame = (now) => {
+        const joinStepMs = this._ms(JOIN_STEP_MS);
+        const runStep = () => {
           if (!this._still(token)) {
             resolve();
             return;
@@ -1566,52 +1992,72 @@
             resolve();
             return;
           }
-          const local = Math.min(1, Math.max(0, (now - stepStarted) / JOIN_STEP_MS));
-          paint(step, easeInOut(local));
-          if (local < 1) {
-            this._raf(token, frame);
-            return;
-          }
-          paint(step, 1);
-          step += 1;
-          if (step >= n) {
-            resolve();
-            return;
-          }
-          this._wait(token, JOIN_GAP_MS).then((ok) => {
-            if (!ok) {
+          let elapsed = 0;
+          let last = performance.now();
+          const frame = (now) => {
+            if (!this._still(token)) {
               resolve();
               return;
             }
-            stepStarted = performance.now();
-            this._raf(token, frame);
-          });
+            if (this._paused) {
+              last = now;
+              this._raf(token, frame);
+              return;
+            }
+            elapsed += now - last;
+            last = now;
+            const local = Math.min(1, elapsed / joinStepMs);
+            paint(step, easeInOut(local));
+            this._playheadMs = this._phaseStartMs + elapsed;
+            this._syncTransport();
+            if (local < 1) {
+              this._raf(token, frame);
+              return;
+            }
+            paint(step, 1);
+            this._phaseStartMs += joinStepMs;
+            step += 1;
+            if (step >= n) {
+              resolve();
+              return;
+            }
+            this._wait(token, JOIN_GAP_MS).then((ok) => {
+              if (!ok) {
+                resolve();
+                return;
+              }
+              runStep();
+            });
+          };
+          this._raf(token, frame);
         };
-        this._raf(token, frame);
+        runStep();
       });
     }
 
     async _cursiveTransition(from, to, token) {
       const entering = to.compose && to.compose.mode === "cursive";
       if (entering) {
-        this._setPhase("Reading-order reversal");
+        this._beginPhase("Reading-order reversal");
         await this._reverseOrder(from, REVERSE_MS, token);
         if (!this._still(token)) return;
-        this._setPhase("Grapheme correspondence");
+        this._beginPhase("Grapheme correspondence");
         await this._morphSlots(from, to, true, { settle: false, token });
         if (!this._still(token)) return;
-        this._setPhase("Isolation spacing");
+        this._beginPhase("Isolation spacing");
         await this._spreadForCursiveJoin(to, token);
         if (!this._still(token)) return;
-        this._setPhase(to.compose.term || "Cursive joining");
+        this._beginPhase(to.compose.term || "Cursive joining");
         await this._joinOneByOne(to, token);
       } else {
-        this._setPhase("Cursive segregation");
+        this._beginPhase("Cursive segregation");
         this._renderScript(from.id, false, { joined: false, reversed: true });
-        this._setPhase("Grapheme correspondence");
+        await this._wait(token, 80);
+        if (!this._still(token)) return;
+        this._beginPhase("Grapheme correspondence");
         await this._morphSlots(from, to, true, { settle: false, token });
         if (!this._still(token)) return;
-        this._setPhase("Reading-order reversal");
+        this._beginPhase("Reading-order reversal");
         await this._unreverseOrder(to, REVERSE_MS, token);
       }
     }
@@ -1623,7 +2069,7 @@
       const steps = (script.compose && script.compose.steps) || [];
       for (const step of steps) {
         if (!this._still(token)) return;
-        this._setPhase(step.term || script.compose.term || "Mark attachment");
+        this._beginPhase(step.term || script.compose.term || "Mark attachment");
         await this._attachMerge(script, step, token);
       }
     }
@@ -1683,30 +2129,22 @@
         combined.setAttribute("transform", fitted(baseX + pad, dy));
         row.appendChild(combined);
 
-        const t0 = performance.now();
-        const dur = JOIN_STEP_MS;
-        const frame = (now) => {
-          if (!this._still(token)) {
-            resolve();
-            return;
-          }
-          const t = easeInOut(Math.min(1, (now - t0) / dur));
+        this._animate(token, JOIN_STEP_MS, (t) => {
           if (basePath) basePath.style.opacity = String(1 - t);
           if (markPath) markPath.style.opacity = String(1 - t);
           markG.style.opacity = String(1 - t);
           combined.style.opacity = String(t);
-          // Optional: ease mark toward base while fading
           const x = markX + (baseX - markX) * t;
           markG.setAttribute("transform", `translate(${x}, 0)`);
           combined.setAttribute("transform", fitted(baseX + pad, dy));
-          if (t < 1) {
-            this._raf(token, frame);
+        }).then((ok) => {
+          if (!ok) {
+            resolve();
             return;
           }
           markG.remove();
           if (basePath) basePath.remove();
           combined.style.opacity = "1";
-          // Keep composed glyph in the base group for stable slot indexing.
           baseG.appendChild(combined);
           combined.removeAttribute("style");
           combined.setAttribute("transform", fitted(pad, dy));
@@ -1715,8 +2153,7 @@
           baseG.dataset.morphPad = String(pad);
           if (step.bounds) baseG.dataset.bounds = step.bounds.join(",");
           resolve();
-        };
-        this._raf(token, frame);
+        });
       });
     }
 
@@ -1735,25 +2172,68 @@
         .join("");
       this.overlay.innerHTML = `
         <button type="button" class="script-morph-overlay__close" aria-label="Close fullscreen">×</button>
-        <div class="script-morph-overlay__main"></div>
+        <div class="script-morph-overlay__main">
+          <div class="script-morph-overlay__stage"></div>
+          <div class="script-morph__transport" hidden>
+            <button type="button" class="script-morph__play" aria-label="Pause">❚❚</button>
+            <div class="script-morph__seek-wrap">
+              <div class="script-morph__markers" aria-hidden="true"></div>
+              <input type="range" class="script-morph__seek" min="0" max="1000" value="0" step="1" aria-label="Seek morph timeline" />
+            </div>
+          </div>
+        </div>
         <aside class="script-morph-chooser" aria-label="Choose script">
-          <p class="script-morph-chooser__title">Scripts</p>
+          <p class="script-morph-chooser__title">scripts</p>
           <ul class="script-morph-chooser__list">${chooserItems}</ul>
         </aside>
       `;
       document.body.appendChild(this.overlay);
       document.body.classList.add("script-morph-open");
 
-      const main = this.overlay.querySelector(".script-morph-overlay__main");
+      const stageMount = this.overlay.querySelector(".script-morph-overlay__stage");
       this._fsHost = document.createElement("div");
       this._fsHost.className = "script-morph-host is-active";
-      main.appendChild(this._fsHost);
+      stageMount.appendChild(this._fsHost);
 
       this._placeholder = document.createComment("script-morph-fs");
       this.root.parentNode.insertBefore(this._placeholder, this.root);
       this._fsHost.appendChild(this.root);
       this.root.classList.add("script-morph--fullscreen");
       this.btnFs.hidden = true;
+
+      this.transportEl = this.overlay.querySelector(".script-morph__transport");
+      this.transportEl.hidden = false;
+      this.playBtn = this.overlay.querySelector(".script-morph__play");
+      this.seekEl = this.overlay.querySelector(".script-morph__seek");
+      this._syncPlayButton();
+
+      this.playBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this._togglePlayPause();
+      });
+      this.seekEl.addEventListener("pointerdown", () => {
+        this._seeking = true;
+        this._paused = true;
+        this._playing = false;
+        this._syncPlayButton();
+      });
+      this.seekEl.addEventListener("input", () => {
+        this._seeking = true;
+        this._playheadMs = parseFloat(this.seekEl.value) || 0;
+      });
+      const commitSeek = () => {
+        if (!this._seeking) return;
+        const ms = parseFloat(this.seekEl.value) || 0;
+        this._onSeekInput(ms, true);
+      };
+      this.seekEl.addEventListener("change", commitSeek);
+      this.seekEl.addEventListener("pointerup", commitSeek);
+      this.transportEl.querySelector(".script-morph__markers").addEventListener("click", (e) => {
+        const marker = e.target.closest(".script-morph__marker");
+        if (!marker) return;
+        const ms = parseFloat(marker.getAttribute("data-ms")) || 0;
+        this._onSeekInput(ms, true);
+      });
 
       this.chooser = this.overlay.querySelector(".script-morph-chooser");
       this.chooser.addEventListener("click", (e) => {
@@ -1762,6 +2242,8 @@
         this.goToScriptId(btn.getAttribute("data-script"));
       });
       this._syncChooser();
+
+      if (this._timeline) this._installTimeline(this._timeline);
 
       this.overlay.querySelector(".script-morph-overlay__close").addEventListener("click", () => {
         this.closeFullscreen();
@@ -1772,9 +2254,15 @@
     closeFullscreen() {
       if (!this.fullscreen) return;
       this.fullscreen = false;
+      this._paused = false;
+      this._playing = true;
       this.btnFs.hidden = false;
       this.root.classList.remove("script-morph--fullscreen");
       this.chooser = null;
+      this.transportEl = null;
+      this.playBtn = null;
+      this.seekEl = null;
+      this._setPhase("");
       if (this._placeholder && this._placeholder.parentNode) {
         this._placeholder.parentNode.insertBefore(this.root, this._placeholder);
         this._placeholder.remove();
