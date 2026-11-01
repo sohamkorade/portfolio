@@ -109,6 +109,19 @@ export class ScriptMorph {
     this._snap(this.carousel[this.index], true);
     this.stage.focus();
     this._syncChooser();
+    this._nudgeChevrons();
+  }
+
+  /** Flash prev+next so both navigation affordances are discoverable. */
+  _nudgeChevrons() {
+    const btns = [this.btnPrev, this.btnNext].filter(Boolean);
+    if (!btns.length) return;
+    btns.forEach((btn) => btn.classList.add("is-nudge"));
+    clearTimeout(this._nudgeTimer);
+    // 2 iterations × 0.55s — matches script-morph-chevron-flash.
+    this._nudgeTimer = setTimeout(() => {
+      btns.forEach((btn) => btn.classList.remove("is-nudge"));
+    }, 1100);
   }
 
   deactivate() {

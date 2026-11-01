@@ -258,7 +258,9 @@
   font-size: 0.85em;
   line-height: 1;
   flex: 0 0 auto;
-  transition: opacity 0.2s ease, color 0.15s ease, border-color 0.15s ease;
+  border-radius: 2px;
+  transition: opacity 0.2s ease, color 0.15s ease, border-color 0.15s ease,
+    background-color 0.15s ease;
 
   &:hover,
   &:focus-visible {
@@ -270,6 +272,25 @@
     pointer-events: auto;
     outline: 2px solid var(--sm-hover);
     outline-offset: 2px;
+  }
+
+  // First-activation nudge: keep both chevrons visible while backgrounds flash.
+  &.is-nudge {
+    opacity: 1;
+    pointer-events: auto;
+    animation: script-morph-chevron-flash 0.55s ease-in-out 2;
+  }
+}
+
+@keyframes script-morph-chevron-flash {
+  0%,
+  100% {
+    background-color: transparent;
+    color: var(--sm-muted);
+  }
+  45% {
+    background-color: color-mix(in srgb, var(--sm-hover) 32%, transparent);
+    color: var(--sm-hover);
   }
 }
 
