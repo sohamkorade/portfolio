@@ -11,6 +11,7 @@ import {
   installMarkers,
   highlightMarker,
 } from "./dom.js";
+import { track } from "./track.js";
 
 export class ScriptMorph {
   constructor(host, data) {
@@ -48,11 +49,11 @@ export class ScriptMorph {
   _bind() {
     this.btnPrev.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.step(-1);
+      this.step(-1, "chevron");
     });
     this.btnNext.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.step(1);
+      this.step(1, "chevron");
     });
     this.btnFs.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -69,10 +70,10 @@ export class ScriptMorph {
     this.stage.addEventListener("keydown", (e) => {
       if (e.key === "ArrowRight" || e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        this.step(1);
+        this.step(1, "keyboard");
       } else if (e.key === "ArrowLeft") {
         e.preventDefault();
-        this.step(-1);
+        this.step(-1, "keyboard");
       } else if (e.key === "Escape") {
         e.preventDefault();
         this.deactivate();
@@ -86,12 +87,13 @@ export class ScriptMorph {
     document.addEventListener("keydown", this._onDocKey);
   }
 
-  activate() {
+  activate(source = "name") {
     if (this.active) return;
     this.active = true;
     this.host.classList.add("is-active");
     const hint = this.host.querySelector(".script-morph-hint");
     if (hint) hint.classList.add("is-hidden");
+    track("script_morph_open", { source });
 
     // Always reopen on the first nav script, with first→second armed at t=0
     // (paused) so glyph seek / seekbar / play work immediately.
@@ -145,6 +147,7 @@ export class ScriptMorph {
     this.host.classList.remove("is-active");
     const hint = this.host.querySelector(".script-morph-hint");
     if (hint) hint.classList.remove("is-hidden");
+    track("script_morph_close");
     this.label.focus();
   }
 
@@ -181,23 +184,23 @@ export class ScriptMorph {
     if (this.scriptNameEl) this.scriptNameEl.textContent = s ? s.label : "";
   }
 
-  step(delta) {
+  step(delta, via = "chevron") {
     if (!this.active) return;
     const list = this._navList();
     if (!list.length) return;
     const currentId = this.carousel[this.index];
     let pos = list.indexOf(currentId);
     if (pos < 0) pos = delta > 0 ? -1 : 0;
-    this.goToScriptId(list[(pos + delta + list.length) % list.length]);
+    this.goToScriptId(list[(pos + delta + list.length) % list.length], via);
   }
 
-  goToScriptId(scriptId) {
+  goToScriptId(scriptId, via = "chooser") {
     const nextIndex = this.carousel.indexOf(scriptId);
     if (nextIndex < 0) return;
-    this.goTo(nextIndex);
+    this.goTo(nextIndex, via);
   }
 
-  goTo(nextIndex) {
+  goTo(nextIndex, via = null) {
     if (!this.active) return;
     if (nextIndex === this.index && !this.animating) return;
 
@@ -216,6 +219,7 @@ export class ScriptMorph {
     this.index = nextIndex;
     this._syncChooser();
     this._syncScriptName(scriptById(this.data, toId));
+    if (via) track("script_morph_script", { script_id: toId, via });
     this._startTransition(fromId, toId, 0);
   }
 
@@ -334,6 +338,7 @@ export class ScriptMorph {
     if (!this.fullscreen) return;
     if (!this.animating) {
       if (this._fromId && this._toId) {
+        track("script_morph_seek", { via: "play" });
         this._startTransition(this._fromId, this._toId, 0);
       }
       return;
@@ -342,6 +347,7 @@ export class ScriptMorph {
     this._playing = !this._paused;
     this._lastTs = 0;
     this._syncPlayButton();
+    track("script_morph_seek", { via: "play" });
   }
 
   /** Resolve slot under the pointer from the live SVG (survives per-frame rebuilds). */
@@ -419,18 +425,20 @@ export class ScriptMorph {
     const ms = slotAnchorMs(this._timeline, slot, this._playheadMs || 0);
     if (ms == null) return;
     e.preventDefault();
-    this._onSeekCommit(ms);
+    this._onSeekCommit(ms, "glyph");
   }
 
-  _onSeekCommit(ms) {
+  _onSeekCommit(ms, via = "scrub") {
     if (!this._timeline || !this._fromId || !this._toId) return;
     this._seeking = false;
+    track("script_morph_seek", { via });
     this._startTransition(this._fromId, this._toId, ms);
   }
 
   openFullscreen() {
     if (this.fullscreen || !this.active) return;
     this.fullscreen = true;
+    track("script_morph_fullscreen_open");
 
     const ui = buildOverlay(this.carousel, this.data);
     Object.assign(this, ui);
@@ -489,20 +497,20 @@ export class ScriptMorph {
     });
     const commit = () => {
       if (!this._seeking) return;
-      this._onSeekCommit(parseFloat(this.seekEl.value) || 0);
+      this._onSeekCommit(parseFloat(this.seekEl.value) || 0, "scrub");
     };
     this.seekEl.addEventListener("change", commit);
     this.seekEl.addEventListener("pointerup", commit);
     this.markersEl.addEventListener("click", (e) => {
       const marker = e.target.closest(".script-morph__marker");
       if (!marker) return;
-      this._onSeekCommit(parseFloat(marker.getAttribute("data-ms")) || 0);
+      this._onSeekCommit(parseFloat(marker.getAttribute("data-ms")) || 0, "marker");
     });
 
     this.chooser.addEventListener("click", (e) => {
       const btn = e.target.closest(".script-morph-chooser__btn");
       if (!btn) return;
-      this.goToScriptId(btn.getAttribute("data-script"));
+      this.goToScriptId(btn.getAttribute("data-script"), "chooser");
     });
     // Blank fullscreen chrome dismisses; keep clicks on the morph / transport / chooser.
     this.overlay.addEventListener("click", (e) => {
@@ -523,6 +531,7 @@ export class ScriptMorph {
   closeFullscreen() {
     if (!this.fullscreen) return;
     this.fullscreen = false;
+    track("script_morph_fullscreen_close");
     this._paused = false;
     this._playing = true;
     this.btnFs.hidden = false;

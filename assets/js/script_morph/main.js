@@ -57,9 +57,9 @@ async function bootHost(host) {
     trackPointer(hint);
   }
 
-  const activate = async () => {
+  const activate = async (source) => {
     try {
-      (await ensure()).activate();
+      (await ensure()).activate(source);
     } catch (_) {}
   };
 
@@ -68,19 +68,19 @@ async function bootHost(host) {
     const sel = window.getSelection?.();
     if (sel?.toString() && label.contains(sel.anchorNode)) return;
     e.preventDefault();
-    activate();
+    activate("name");
   });
   label.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      activate();
+      activate("keyboard");
     }
   });
   if (hint) {
     hint.addEventListener("click", (e) => {
       if (moved) return;
       e.preventDefault();
-      activate();
+      activate("hint");
     });
   }
 }
