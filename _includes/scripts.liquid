@@ -323,3 +323,7 @@
 {% if site.newsletter.enabled %}
   <script defer src="{{ '/assets/js/newsletter.js' | relative_url | bust_file_cache }}"></script>
 {% endif %}
+
+{% if page.permalink == '/' %}
+  <script type="module" src="{{ '/assets/js/script_morph/main.js' | relative_url | bust_file_cache }}"></script>
+{% endif %}

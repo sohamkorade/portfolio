@@ -11,3 +11,5 @@ assets/libs/
 node_modules/
 vendor
 .idea
+scripts/script_morph/fonts.local.yaml
+scripts/script_morph/__pycache__/

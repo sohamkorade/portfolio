@@ -43,9 +43,7 @@
       "startDate": "2023-05",
       "endDate": "",
       "summary": "Research on cognition, grapholinguistics, and related computational methods under Prof. Bapi Raju.",
-      "highlights": [
-        "Honors research topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems."
-      ]
+      "highlights": ["Honors research topics: Semantic Networks, Chess and Cognition, Graphic Complexity in Writing Systems."]
     },
     {
       "name": "Walmart Global Tech",
@@ -69,9 +67,7 @@
       "endDate": "2025-07",
       "location": "Bengaluru, India (Remote)",
       "summary": "Internship at an AI music generation startup.",
-      "highlights": [
-        "Led frontend development; optimized and shipped user-facing features using Next.js."
-      ]
+      "highlights": ["Led frontend development; optimized and shipped user-facing features using Next.js."]
     },
     {
       "name": "IIIT Hyderabad",
@@ -80,9 +76,7 @@
       "startDate": "2024-07",
       "endDate": "2025-05",
       "summary": "HS1.210 Music Workshop and HS1.209 Music Language Creativity (2 semesters).",
-      "highlights": [
-        "Designed assignments, assisted the professor, and guided students in workshop projects."
-      ]
+      "highlights": ["Designed assignments, assisted the professor, and guided students in workshop projects."]
     },
     {
       "name": "Disney+ Hotstar",
@@ -118,9 +112,7 @@
       "startDate": "2023-01",
       "endDate": "2023-05",
       "summary": "Cloud-based LMS startup.",
-      "highlights": [
-        "Built backend for a cloud-based LMS and integrated RESTful APIs with the frontend, following Agile practices."
-      ]
+      "highlights": ["Built backend for a cloud-based LMS and integrated RESTful APIs with the frontend, following Agile practices."]
     }
   ],
   "education": [
