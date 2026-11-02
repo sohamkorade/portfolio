@@ -1,0 +1,1 @@
+export function track(t,n={}){"function"==typeof window.gtag&&window.gtag("event",t,n)}

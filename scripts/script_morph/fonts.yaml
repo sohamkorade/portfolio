@@ -1,0 +1,32 @@
+# Font id → local file. Override paths in fonts.local.yaml (gitignored) if needed.
+# face_index is for TTC collections (CJK).
+fonts:
+  noto-sans:
+    path: /usr/share/fonts/truetype/noto/NotoSans-Regular.ttf
+  noto-sans-devanagari:
+    path: /usr/share/fonts/truetype/noto/NotoSansDevanagari-Regular.ttf
+  noto-sans-bengali:
+    path: /usr/share/fonts/truetype/noto/NotoSansBengali-Regular.ttf
+  noto-sans-gurmukhi:
+    path: /usr/share/fonts/truetype/noto/NotoSansGurmukhi-Regular.ttf
+  noto-sans-oriya:
+    path: /usr/share/fonts/truetype/noto/NotoSansOriya-Regular.ttf
+  noto-sans-modi:
+    path: /usr/share/fonts/truetype/noto/NotoSansModi-Regular.ttf
+  noto-sans-telugu:
+    path: /usr/share/fonts/truetype/noto/NotoSansTelugu-Regular.ttf
+  noto-sans-kannada:
+    path: /usr/share/fonts/truetype/noto/NotoSansKannada-Regular.ttf
+  noto-sans-tamil:
+    path: /usr/share/fonts/truetype/noto/NotoSansTamil-Regular.ttf
+  noto-sans-malayalam:
+    path: /usr/share/fonts/truetype/noto/NotoSansMalayalam-Regular.ttf
+  noto-sans-sinhala:
+    path: /usr/share/fonts/truetype/noto/NotoSansSinhala-Regular.ttf
+  noto-serif-tibetan:
+    path: /usr/share/fonts/truetype/noto/NotoSerifTibetan-Regular.ttf
+  noto-sans-cjk-jp:
+    path: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+    face_index: 0
+  noto-nastaliq-urdu:
+    path: /usr/share/fonts/truetype/noto/NotoNastaliqUrdu-Regular.ttf
