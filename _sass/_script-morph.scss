@@ -384,7 +384,10 @@
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 2px;
-  transition: opacity 0.2s ease, color 0.15s ease, border-color 0.15s ease,
+  transition:
+    opacity 0.2s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
     background-color 0.15s ease;
 
   &:hover,
@@ -418,7 +421,6 @@
     color: var(--sm-hover);
   }
 }
-
 
 .script-morph-overlay {
   --sm-fg: var(--global-text-color);
@@ -701,9 +703,7 @@
     // Host-relative chrome row; keep in sync with the inactive min-height below.
     --sm-mobile-chrome-h: 1.2em;
     --sm-mobile-row-gap: 0.4rem;
-    --sm-mobile-widget-h: calc(
-      var(--sm-control-h) + var(--sm-mobile-row-gap) + var(--sm-mobile-chrome-h)
-    );
+    --sm-mobile-widget-h: calc(var(--sm-control-h) + var(--sm-mobile-row-gap) + var(--sm-mobile-chrome-h));
   }
 
   // Inactive: hold the active two-line height so .desc doesn't jump on open.

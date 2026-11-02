@@ -1,16 +1,7 @@
-import {
-  COMPACT_SCRIPTS,
-  REDUCED,
-  scriptById,
-} from "./util.js";
+import { COMPACT_SCRIPTS, REDUCED, scriptById } from "./util.js";
 import { planTimeline, stateAt, slotAnchorMs } from "./timeline.js";
 import { paint, paintScript } from "./paint.js";
-import {
-  buildWidget,
-  buildOverlay,
-  installMarkers,
-  highlightMarker,
-} from "./dom.js";
+import { buildWidget, buildOverlay, installMarkers, highlightMarker } from "./dom.js";
 import { track } from "./track.js";
 
 export class ScriptMorph {
@@ -19,9 +10,7 @@ export class ScriptMorph {
     this.label = host.querySelector(".script-morph-label");
     this.data = data;
     this.carousel = data.carousel.filter((id) => scriptById(data, id));
-    this.compactCarousel = COMPACT_SCRIPTS.filter((id) =>
-      this.carousel.includes(id)
-    );
+    this.compactCarousel = COMPACT_SCRIPTS.filter((id) => this.carousel.includes(id));
     this.index = Math.max(0, this.carousel.indexOf("latin"));
     this.active = false;
     this.fullscreen = false;
@@ -278,10 +267,7 @@ export class ScriptMorph {
       if (!this._lastTs) this._lastTs = ts;
       if (!this._paused && this._playing) {
         const dt = ts - this._lastTs;
-        this._playheadMs = Math.min(
-          this._timeline.total,
-          this._playheadMs + dt
-        );
+        this._playheadMs = Math.min(this._timeline.total, this._playheadMs + dt);
         this._paintAt(this._playheadMs);
         if (this._playheadMs >= this._timeline.total) {
           this.animating = false;
@@ -355,9 +341,7 @@ export class ScriptMorph {
     if (!this.svg) return null;
     for (const node of document.elementsFromPoint(clientX, clientY)) {
       if (!this.svg.contains(node)) continue;
-      const host = node.hasAttribute?.("data-slot")
-        ? node
-        : node.closest?.("[data-slot]");
+      const host = node.hasAttribute?.("data-slot") ? node : node.closest?.("[data-slot]");
       if (!host || !this.svg.contains(host)) continue;
       const slot = parseInt(host.getAttribute("data-slot"), 10);
       if (!Number.isNaN(slot)) return slot;
@@ -415,11 +399,7 @@ export class ScriptMorph {
     const y0 = this._pressY;
     this._pressSlot = null;
     if (slot == null) return;
-    if (
-      x0 != null &&
-      y0 != null &&
-      Math.hypot(e.clientX - x0, e.clientY - y0) > 8
-    ) {
+    if (x0 != null && y0 != null && Math.hypot(e.clientX - x0, e.clientY - y0) > 8) {
       return;
     }
     const ms = slotAnchorMs(this._timeline, slot, this._playheadMs || 0);
@@ -458,9 +438,7 @@ export class ScriptMorph {
 
     if (!this._timeline) {
       const cur = scriptById(this.data, this.carousel[this.index]);
-      const prevId =
-        this._fromId ||
-        this.carousel[(this.index - 1 + this.carousel.length) % this.carousel.length];
+      const prevId = this._fromId || this.carousel[(this.index - 1 + this.carousel.length) % this.carousel.length];
       const prev = scriptById(this.data, prevId) || cur;
       if (cur) this._installTimeline(planTimeline(prev, cur, true));
     } else {
@@ -468,9 +446,7 @@ export class ScriptMorph {
       if (this._fromId && this._toId) {
         const from = scriptById(this.data, this._fromId);
         const to = scriptById(this.data, this._toId);
-        const ratio = this._timeline.total
-          ? this._playheadMs / this._timeline.total
-          : 0;
+        const ratio = this._timeline.total ? this._playheadMs / this._timeline.total : 0;
         this._timeline = planTimeline(from, to, true);
         this._playheadMs = ratio * this._timeline.total;
         this._installTimeline(this._timeline);
@@ -514,11 +490,7 @@ export class ScriptMorph {
     });
     // Blank fullscreen chrome dismisses; keep clicks on the morph / transport / chooser.
     this.overlay.addEventListener("click", (e) => {
-      if (
-        e.target.closest(
-          ".script-morph, .script-morph__transport, .script-morph-chooser, .script-morph-overlay__close"
-        )
-      ) {
+      if (e.target.closest(".script-morph, .script-morph__transport, .script-morph-chooser, .script-morph-overlay__close")) {
         return;
       }
       this.closeFullscreen();

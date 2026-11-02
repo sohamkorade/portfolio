@@ -2,13 +2,13 @@
 layout: about
 title: about
 permalink: /
-subtitle: 
+subtitle:
 
 profile:
   align: right
   image: soham3.jpg
   image_circular: false # crops the image to make it circular
-  more_info: 
+  more_info:
 
 selected_papers: false # includes a list of papers marked as "selected={true}"
 social: true # includes social icons at the bottom of the page
@@ -27,7 +27,6 @@ latest_posts:
 Hello! I'm a Product Software Engineer at [nowon AG](https://nowon.io/), working remotely from Bengaluru on music recognition and audio-AI. I graduated with a B.Tech in CSE (Honors in Cognitive Science) from [IIIT Hyderabad](https://www.iiit.ac.in/) in 2025.
 
 I'm passionate about the intersection of technology and research. With a foundation in computer science and engineering, I’ve worked on projects ranging from MERN stack applications to ResNets and compilers to computational musicology. I am always eager to learn and explore new ideas, particularly those that bridge technology and and my hobbies: music, chess, languages.
-
 
 **Education:** B.Tech CSE (Honors, Cognitive Science), [IIIT Hyderabad](https://www.iiit.ac.in/) (2021–2025)
 

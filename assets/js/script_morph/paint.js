@@ -1,10 +1,5 @@
 import { paintMorph, paintStatic, paintReverse } from "./morph.js";
-import {
-  paintSpread,
-  paintJoin,
-  paintAttach,
-  paintSettle,
-} from "./compose.js";
+import { paintSpread, paintJoin, paintAttach, paintSettle } from "./compose.js";
 
 /** Paint a stateAt snapshot into the SVG. */
 export function paint(svg, state) {

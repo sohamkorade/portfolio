@@ -1,17 +1,5 @@
-import {
-  el,
-  slotPath,
-  ISOL_GAP,
-  BOX_PAD,
-  lerp,
-  resolveAttachedSlots,
-} from "./util.js";
-import {
-  displayMetrics,
-  setViewBox,
-  rtlXs,
-  morphToFit,
-} from "./metrics.js";
+import { el, slotPath, ISOL_GAP, BOX_PAD, lerp, resolveAttachedSlots } from "./util.js";
+import { displayMetrics, setViewBox, rtlXs, morphToFit } from "./metrics.js";
 import { paintStatic, slotHitRect } from "./morph.js";
 
 function joinedMetrics(script) {
@@ -229,10 +217,7 @@ export function paintSettle(svg, script, t, opts = {}) {
     const g = el("g", { className: "script-morph__row" });
     g.appendChild(
       el("path", {
-        className:
-          t >= 0.999
-            ? "script-morph__joined"
-            : "script-morph__joined script-morph__slot--settling",
+        className: t >= 0.999 ? "script-morph__joined" : "script-morph__joined script-morph__slot--settling",
         d: script.joined.path,
       })
     );
@@ -240,11 +225,7 @@ export function paintSettle(svg, script, t, opts = {}) {
       minY: lerp(startM.minY, endM.minY, t),
       maxY: lerp(startM.maxY, endM.maxY, t),
       height: lerp(startM.height, endM.height, t),
-      width: lerp(
-        Math.max(startM.width, 1),
-        Math.max(endM.width, 1),
-        t
-      ),
+      width: lerp(Math.max(startM.width, 1), Math.max(endM.width, 1), t),
       tight: endM.tight || startM.tight,
     });
     svg.replaceChildren(g);
@@ -252,8 +233,7 @@ export function paintSettle(svg, script, t, opts = {}) {
     return;
   }
 
-  const applyAttach =
-    opts.attached !== false && script.compose?.mode === "attach";
+  const applyAttach = opts.attached !== false && script.compose?.mode === "attach";
   const slots = applyAttach ? resolveAttachedSlots(script) : script.slots;
   const viewScript = slots === script.slots ? script : { ...script, slots };
   const endM = displayMetrics(viewScript);
@@ -261,15 +241,11 @@ export function paintSettle(svg, script, t, opts = {}) {
   const startM = fit?.fromM || endM;
   const scale = fit ? lerp(fit.scale, 1, t) : 1;
   const dy = fit ? lerp(fit.dy, 0, t) : 0;
-  const hover =
-    opts.hoverSlot == null || Number.isNaN(opts.hoverSlot)
-      ? -1
-      : opts.hoverSlot;
+  const hover = opts.hoverSlot == null || Number.isNaN(opts.hoverSlot) ? -1 : opts.hoverSlot;
 
   const g = el("g", { className: "script-morph__row" });
   const ink = el("g", {
-    transform:
-      scale === 1 && dy === 0 ? null : `translate(0, ${dy}) scale(${scale})`,
+    transform: scale === 1 && dy === 0 ? null : `translate(0, ${dy}) scale(${scale})`,
   });
   let x = 0;
   for (let i = 0; i < slots.length; i++) {
@@ -281,10 +257,7 @@ export function paintSettle(svg, script, t, opts = {}) {
       transform: `translate(${x}, 0)`,
     });
     const resting = el("path", {
-      className:
-        t >= 0.999
-          ? "script-morph__slot"
-          : "script-morph__slot script-morph__slot--settling",
+      className: t >= 0.999 ? "script-morph__slot" : "script-morph__slot script-morph__slot--settling",
       d: slotPath(slot),
     });
     if (t < 0.999) {
@@ -299,23 +272,14 @@ export function paintSettle(svg, script, t, opts = {}) {
     cell.appendChild(resting);
     const b = slot.bounds || [0, 0, slot.advance || 0, 800];
     cell.appendChild(
-      slotHitRect(
-        i,
-        -BOX_PAD,
-        b[1] - BOX_PAD,
-        Math.max(slot.advance || 0, 1) + BOX_PAD * 2,
-        Math.max(b[3] - b[1], 1) + BOX_PAD * 2,
-        hover === i
-      )
+      slotHitRect(i, -BOX_PAD, b[1] - BOX_PAD, Math.max(slot.advance || 0, 1) + BOX_PAD * 2, Math.max(b[3] - b[1], 1) + BOX_PAD * 2, hover === i)
     );
     ink.appendChild(cell);
     x += slot.advance || 0;
   }
   g.appendChild(ink);
 
-  const startWidth = fit
-    ? Math.max(startM.width, endM.width * fit.scale, 1)
-    : Math.max(endM.width, 1);
+  const startWidth = fit ? Math.max(startM.width, endM.width * fit.scale, 1) : Math.max(endM.width, 1);
   setViewBox(svg, {
     minY: lerp(startM.minY, endM.minY, t),
     maxY: lerp(startM.maxY, endM.maxY, t),

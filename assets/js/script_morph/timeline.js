@@ -1,11 +1,4 @@
-import {
-  MS,
-  slotsEqual,
-  scaleDuration,
-  easeInOut,
-  atomsOf,
-  padAtoms,
-} from "./util.js";
+import { MS, slotsEqual, scaleDuration, easeInOut, atomsOf, padAtoms } from "./util.js";
 
 export function countChangedSlots(a, b) {
   if (!a?.slots || !b?.slots) return 0;
@@ -18,24 +11,14 @@ export function countChangedSlots(a, b) {
 
 function stepDuration(step, atomMs) {
   // Matra combine/discombine and anusvāra attach/detach share one grain.
-  if (
-    step.kind === "combine" ||
-    step.kind === "discombine" ||
-    step.kind === "attach" ||
-    step.kind === "detach"
-  ) {
+  if (step.kind === "combine" || step.kind === "discombine" || step.kind === "attach" || step.kind === "detach") {
     return MS.atomCombine;
   }
   return atomMs;
 }
 
 function isMarkStep(step) {
-  return (
-    step.kind === "combine" ||
-    step.kind === "discombine" ||
-    step.kind === "attach" ||
-    step.kind === "detach"
-  );
+  return step.kind === "combine" || step.kind === "discombine" || step.kind === "attach" || step.kind === "detach";
 }
 
 function gapBefore(prev, next) {
@@ -53,9 +36,7 @@ function gapBefore(prev, next) {
 
 function attachPlans(script) {
   if (script.compose?.mode !== "attach") return [];
-  return (script.compose.steps || []).filter(
-    (st) => Array.isArray(st.slots) && st.slots.length >= 2 && st.path
-  );
+  return (script.compose.steps || []).filter((st) => Array.isArray(st.slots) && st.slots.length >= 2 && st.path);
 }
 
 /**
@@ -203,11 +184,7 @@ export function planTimeline(from, to, fullscreen) {
   let morphFrom = from;
   if (from.id === "latin" && from.slots_lower) {
     const start = t;
-    add(
-      "case-out",
-      "Case folding",
-      morphDurationMs(from, withLower(from), { duration: MS.caseFold, sameScript: true })
-    );
+    add("case-out", "Case folding", morphDurationMs(from, withLower(from), { duration: MS.caseFold, sameScript: true }));
     fineTicks.push(
       ...fineTicksForMorph(start, from, withLower(from), false, fullscreen, {
         duration: MS.caseFold,
@@ -230,44 +207,30 @@ export function planTimeline(from, to, fullscreen) {
     {
       const start = t;
       add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
-      fineTicks.push(
-        ...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen)
-      );
+      fineTicks.push(...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen));
     }
     add("spread", "Isolation spacing", MS.spread);
     const joinSteps = (to.join_steps || []).length || to.slots.length;
-    add(
-      "join",
-      to.compose.term || "Cursive joining",
-      joinSteps * MS.joinStep + Math.max(0, joinSteps - 1) * MS.joinGap
-    );
+    add("join", to.compose.term || "Cursive joining", joinSteps * MS.joinStep + Math.max(0, joinSteps - 1) * MS.joinGap);
   } else if (leavingCursive) {
     add("segregate", "Cursive segregation", MS.segregate);
     {
       const start = t;
       add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
-      fineTicks.push(
-        ...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen)
-      );
+      fineTicks.push(...fineTicksForMorph(start, morphFrom, morphTo, true, fullscreen));
     }
     add("unreverse", "Reading-order reversal", MS.reverse);
   } else {
     const start = t;
     add("morph", "Grapheme correspondence", morphDurationMs(morphFrom, morphTo));
-    fineTicks.push(
-      ...fineTicksForMorph(start, morphFrom, morphTo, false, fullscreen)
-    );
+    fineTicks.push(...fineTicksForMorph(start, morphFrom, morphTo, false, fullscreen));
   }
 
   // Attach (anusvāra / pulli) runs inline in the morph segment like matra combine.
 
   if (enteringLatin) {
     const start = t;
-    add(
-      "case-in",
-      "Case folding",
-      morphDurationMs(withLower(to), to, { duration: MS.caseFold, sameScript: true })
-    );
+    add("case-in", "Case folding", morphDurationMs(withLower(to), to, { duration: MS.caseFold, sameScript: true }));
     fineTicks.push(
       ...fineTicksForMorph(start, withLower(to), to, false, fullscreen, {
         duration: MS.caseFold,
@@ -301,17 +264,9 @@ export function slotAnchorMs(plan, slotIndex, aroundMs = 0) {
   const morphSegs = plan.segments.filter((s) => MORPH_SEG_IDS.has(s.id));
   if (!morphSegs.length) return null;
 
-  const seg =
-    morphSegs.find((s) => aroundMs >= s.start && aroundMs <= s.end) ||
-    morphSegs.find((s) => s.id === "morph") ||
-    morphSegs[0];
+  const seg = morphSegs.find((s) => aroundMs >= s.start && aroundMs <= s.end) || morphSegs.find((s) => s.id === "morph") || morphSegs[0];
 
-  const ticks = (plan.fineTicks || []).filter(
-    (t) =>
-      t.ms >= seg.start &&
-      t.ms < seg.end &&
-      (t.slot === slotIndex || t.markSlot === slotIndex)
-  );
+  const ticks = (plan.fineTicks || []).filter((t) => t.ms >= seg.start && t.ms < seg.end && (t.slot === slotIndex || t.markSlot === slotIndex));
   if (ticks.length) return ticks[0].ms;
   // Unchanged slot: land at segment start (prep / morph open).
   return seg.start;
@@ -413,11 +368,7 @@ export function morphProgress(from, to, localT, opts = {}) {
       continue;
     }
     const atomAvg = ap.reduce((s, v) => s + v, 0) / ap.length;
-    const parts = [
-      discombineProgress[i] || 0,
-      atomAvg,
-      combineProgress[i] || 0,
-    ];
+    const parts = [discombineProgress[i] || 0, atomAvg, combineProgress[i] || 0];
     // Detach starts at 1 when unused; only count when a leave-attach ran.
     if (steps.some((s) => s.kind === "detach" && s.slot === i)) {
       parts.unshift(detachProgress[i] || 0);
@@ -426,15 +377,7 @@ export function morphProgress(from, to, localT, opts = {}) {
     progress[i] = parts.reduce((s, v) => s + v, 0) / parts.length;
   }
 
-  const changed = [
-    ...new Set(
-      steps.flatMap((s) =>
-        s.kind === "attach" || s.kind === "detach"
-          ? [s.slot, s.markSlot]
-          : [s.slot]
-      )
-    ),
-  ];
+  const changed = [...new Set(steps.flatMap((s) => (s.kind === "attach" || s.kind === "detach" ? [s.slot, s.markSlot] : [s.slot])))];
   return {
     progress,
     atomProgress,
@@ -531,8 +474,7 @@ export function stateAt(plan, ms) {
     case "segregate":
       return { ...base, kind: "static", script: from, reversed: true, joined: false };
     case "morph": {
-      const reversed =
-        to.compose?.mode === "cursive" || from.compose?.mode === "cursive";
+      const reversed = to.compose?.mode === "cursive" || from.compose?.mode === "cursive";
       return {
         ...base,
         kind: "morph",

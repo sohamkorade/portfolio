@@ -1,15 +1,5 @@
 export const COMPACT_SPEED = 0.42;
-export const COMPACT_SCRIPTS = [
-  "latin",
-  "devanagari",
-  "bengali",
-  "kannada",
-  "telugu",
-  "malayalam",
-  "tamil",
-  "katakana",
-  "urdu",
-];
+export const COMPACT_SCRIPTS = ["latin", "devanagari", "bengali", "kannada", "telugu", "malayalam", "tamil", "katakana", "urdu"];
 
 export const MS = {
   atomMorph: 360, // per base/matra unit
@@ -83,10 +73,7 @@ export function slotsEqual(a, b) {
   const pa = a.path || "";
   const pb = b.path || "";
   if (pa || pb) return pa === pb;
-  return (
-    (a.text != null ? a.text : "") === (b.text != null ? b.text : "") &&
-    (a.advance || 0) === (b.advance || 0)
-  );
+  return (a.text != null ? a.text : "") === (b.text != null ? b.text : "") && (a.advance || 0) === (b.advance || 0);
 }
 
 export function slotPath(slot) {

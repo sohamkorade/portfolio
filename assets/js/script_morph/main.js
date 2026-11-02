@@ -2,9 +2,7 @@ import { ScriptMorph } from "./app.js";
 
 async function bootHost(host) {
   const id = host.getAttribute("data-phrase");
-  const url =
-    host.getAttribute("data-src") ||
-    `${window.scriptMorphBase || ""}/assets/data/script_morph/${id}.json`;
+  const url = host.getAttribute("data-src") || `${window.scriptMorphBase || ""}/assets/data/script_morph/${id}.json`;
 
   let morph = null;
   let loading = null;

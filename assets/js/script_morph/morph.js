@@ -1,21 +1,5 @@
-import {
-  el,
-  slotPath,
-  slotsEqual,
-  ISOL_GAP,
-  BOX_PAD,
-  lerp,
-  resolveAttachedSlots,
-  atomsOf,
-  padAtoms,
-} from "./util.js";
-import {
-  displayMetrics,
-  setViewBox,
-  morphToFit,
-  slotOrigins,
-  rtlXs,
-} from "./metrics.js";
+import { el, slotPath, slotsEqual, ISOL_GAP, BOX_PAD, lerp, resolveAttachedSlots, atomsOf, padAtoms } from "./util.js";
+import { displayMetrics, setViewBox, morphToFit, slotOrigins, rtlXs } from "./metrics.js";
 
 const CLS_FROM = "script-morph__slot script-morph__slot--from";
 const CLS_TO = "script-morph__slot script-morph__slot--to";
@@ -23,9 +7,7 @@ const CLS_TO = "script-morph__slot script-morph__slot--to";
 /** Invisible hit/hover target for a slot cell (must sit above ink). */
 export function slotHitRect(slotIndex, x, y, w, h, hovered = false, extra = {}) {
   return el("rect", {
-    className: hovered
-      ? "script-morph__slot-hit is-hover"
-      : "script-morph__slot-hit",
+    className: hovered ? "script-morph__slot-hit is-hover" : "script-morph__slot-hit",
     x,
     y,
     width: Math.max(w, 1),
@@ -55,9 +37,7 @@ function atomClass(i, side, split) {
 
 /** Per-atom x origins; RTL places logical index 0 on the right. */
 function atomOrigins(atoms, pad, scale = 1, rtl = false) {
-  const adv = atoms.map((a) =>
-    a && !a.empty ? (a.advance || 0) * scale : 0
-  );
+  const adv = atoms.map((a) => (a && !a.empty ? (a.advance || 0) * scale : 0));
   const xs = new Array(atoms.length);
   if (!rtl) {
     let x = pad;
@@ -76,18 +56,7 @@ function atomOrigins(atoms, pad, scale = 1, rtl = false) {
 }
 
 /** Crossfade padded base/matra atoms using per-atom progress. */
-function paintAtomPair(
-  slotG,
-  fromAtoms,
-  toAtoms,
-  atomTs,
-  fromPad,
-  toPad,
-  scale,
-  dy,
-  atomOpacity = 1,
-  { fromRtl = false, toRtl = false } = {}
-) {
+function paintAtomPair(slotG, fromAtoms, toAtoms, atomTs, fromPad, toPad, scale, dy, atomOpacity = 1, { fromRtl = false, toRtl = false } = {}) {
   const { from, to, n } = padAtoms(fromAtoms, toAtoms);
   const split = fromAtoms.length > 1 || toAtoms.length > 1;
   const fromXs = atomOrigins(from, fromPad, 1, fromRtl);
@@ -165,13 +134,10 @@ export function paintMorph(svg, state) {
   const fromRtl = from.dir === "rtl";
   const toRtl = to.dir === "rtl";
   const atomRtl = { fromRtl, toRtl };
-  const hover =
-    hoverSlot == null || Number.isNaN(hoverSlot) ? -1 : hoverSlot;
+  const hover = hoverSlot == null || Number.isNaN(hoverSlot) ? -1 : hoverSlot;
   const fromSettled = resolveAttachedSlots(from);
   const toSettled = resolveAttachedSlots(to);
-  const fit = sameScript
-    ? { scale: 1, dy: 0, fromM: displayMetrics(from) }
-    : morphToFit(from, to);
+  const fit = sameScript ? { scale: 1, dy: 0, fromM: displayMetrics(from) } : morphToFit(from, to);
   const { scale: toScale, dy: toDy } = fit;
   // Leave-A detach: t=0 composed, t=1 separated. Arrive-B attach: t=0 sep, t=1 composed.
   const fromAttach = attachLookup(from, detachProgress, 1);
@@ -179,9 +145,7 @@ export function paintMorph(svg, state) {
   const { byBase, byMark } = toAttach;
 
   const g = el("g", {
-    className: sameScript
-      ? "script-morph__row script-morph__row--casefold"
-      : "script-morph__row",
+    className: sameScript ? "script-morph__row script-morph__row--casefold" : "script-morph__row",
   });
 
   const logicalAt = (visual) => (reversed ? n - 1 - visual : visual);
@@ -203,10 +167,7 @@ export function paintMorph(svg, state) {
     const absorbedFromMark = fromMark && detachT < 0.001;
     const absorbedMark = markInfo && attachT >= 0.999;
     // Unchanged attach groups stay settled for the whole morph.
-    const settledMark =
-      !changed &&
-      ((fromMark && from.compose?.mode === "attach") ||
-        (markInfo && to.compose?.mode === "attach"));
+    const settledMark = !changed && ((fromMark && from.compose?.mode === "attach") || (markInfo && to.compose?.mode === "attach"));
 
     if (absorbedMark || absorbedFromMark || settledMark) {
       items.push({
@@ -238,11 +199,7 @@ export function paintMorph(svg, state) {
       displayB = composedSlot(b, baseInfo.compose);
       advB = (baseInfo.compose.advance || 0) * toScale;
     } else if (baseInfo && attachT > 0) {
-      advB = lerp(
-        (b.advance || 0) * toScale,
-        (baseInfo.compose.advance || 0) * toScale,
-        attachT
-      );
+      advB = lerp((b.advance || 0) * toScale, (baseInfo.compose.advance || 0) * toScale, attachT);
     } else if (!changed && toSettled[logical] && to.compose?.mode === "attach") {
       displayB = toSettled[logical];
       advB = (displayB.advance || 0) * toScale;
@@ -262,19 +219,13 @@ export function paintMorph(svg, state) {
     const { n: atomN } = padAtoms(fromAtoms, toAtoms);
     const needsDiscombine = changed && fromAtoms.length > 1;
     const needsCombine = changed && toAtoms.length > 1;
-    const discombine = needsDiscombine
-      ? discombineProgress?.[logical] ?? 0
-      : 1;
+    const discombine = needsDiscombine ? discombineProgress?.[logical] ?? 0 : 1;
     const combine = needsCombine ? combineProgress?.[logical] ?? 0 : 1;
 
     const ba = displayA.bounds || a.bounds || [0, 0, advA, 800];
     const bbRaw = displayB.bounds || b.bounds || [0, 0, b.advance || 0, 800];
-    const by =
-      Math.min(ba[1], bbRaw[1] * toScale + toDy) - BOX_PAD;
-    const bh =
-      Math.max(ba[3], bbRaw[3] * toScale + toDy) -
-      Math.min(ba[1], bbRaw[1] * toScale + toDy) +
-      BOX_PAD * 2;
+    const by = Math.min(ba[1], bbRaw[1] * toScale + toDy) - BOX_PAD;
+    const bh = Math.max(ba[3], bbRaw[3] * toScale + toDy) - Math.min(ba[1], bbRaw[1] * toScale + toDy) + BOX_PAD * 2;
 
     const box = el("rect", {
       className: "script-morph__slot-box",
@@ -286,34 +237,25 @@ export function paintMorph(svg, state) {
     });
     const activeAttach = attachT > 0 && attachT < 1;
     const activeDetach = detachT > 0 && detachT < 1;
-    box.style.opacity = changed || activeAttach || activeDetach
-      ? String(
-          0.35 * prepT +
-            (t > 0 && t < 1 || activeAttach || activeDetach ? 0.65 : 0)
-        )
-      : "0";
+    box.style.opacity =
+      changed || activeAttach || activeDetach ? String(0.35 * prepT + ((t > 0 && t < 1) || activeAttach || activeDetach ? 0.65 : 0)) : "0";
     if ((t > 0 && t < 1) || activeAttach || activeDetach) {
       box.classList.add("is-active");
     }
 
     const slotG = el("g", {
-      className: changed
-        ? "script-morph__slot-pair"
-        : "script-morph__slot-pair is-unchanged",
+      className: changed ? "script-morph__slot-pair" : "script-morph__slot-pair is-unchanged",
       "data-slot": logical,
       "data-visual": visual,
     });
     slotG.appendChild(box);
 
-    const atomTs =
-      atomProgress?.[logical] ||
-      (changed ? [t] : [1]);
+    const atomTs = atomProgress?.[logical] || (changed ? [t] : [1]);
     const atomsDone = atomTs.every((v) => v >= 0.999);
     // No matra/combine on B: once atoms land, flip to the "done" color (CLS_TO)
     // like a finished combine — otherwise a lone letter can stay stuck on the
     // base/--from tint when the other side padded a matra column.
-    const slotComplete =
-      changed && atomsDone && (!needsCombine || combine >= 0.999);
+    const slotComplete = changed && atomsDone && (!needsCombine || combine >= 0.999);
 
     // Leave-A detach: composed → consonant (--from) + anusvāra (--to).
     if (fromBase && detachT < 0.999 && changed) {
@@ -371,18 +313,7 @@ export function paintMorph(svg, state) {
           sylA.style.opacity = String((1 - discombine) * baseOpacity);
           slotG.appendChild(sylA);
         }
-        paintAtomPair(
-          slotG,
-          fromAtoms,
-          toAtoms,
-          atomTs,
-          fromPadX,
-          toPadX,
-          toScale,
-          toDy,
-          baseOpacity * discombine * (1 - combine),
-          atomRtl
-        );
+        paintAtomPair(slotG, fromAtoms, toAtoms, atomTs, fromPadX, toPadX, toScale, toDy, baseOpacity * discombine * (1 - combine), atomRtl);
         if (combine > 0.001) {
           const syl = el("path", {
             className: CLS_TO,
@@ -434,32 +365,10 @@ export function paintMorph(svg, state) {
       });
       sylA.style.opacity = String(1 - discombine);
       slotG.appendChild(sylA);
-      paintAtomPair(
-        slotG,
-        fromAtoms,
-        toAtoms,
-        atomTs,
-        fromPadX,
-        toPadX,
-        toScale,
-        toDy,
-        discombine,
-        atomRtl
-      );
+      paintAtomPair(slotG, fromAtoms, toAtoms, atomTs, fromPadX, toPadX, toScale, toDy, discombine, atomRtl);
     } else if (needsCombine && combine > 0.001) {
       // Settle B: consonant (--from) + matra (--to) → combined.
-      paintAtomPair(
-        slotG,
-        fromAtoms,
-        toAtoms,
-        atomTs,
-        fromPadX,
-        toPadX,
-        toScale,
-        toDy,
-        1 - combine,
-        atomRtl
-      );
+      paintAtomPair(slotG, fromAtoms, toAtoms, atomTs, fromPadX, toPadX, toScale, toDy, 1 - combine, atomRtl);
       const combined = el("path", {
         className: `${CLS_TO} script-morph__composed`,
         d: slotPath(b),
@@ -468,31 +377,11 @@ export function paintMorph(svg, state) {
       combined.style.opacity = String(combine);
       slotG.appendChild(combined);
     } else {
-      paintAtomPair(
-        slotG,
-        fromAtoms,
-        toAtoms,
-        atomTs,
-        fromPadX,
-        toPadX,
-        toScale,
-        toDy,
-        1,
-        atomRtl
-      );
+      paintAtomPair(slotG, fromAtoms, toAtoms, atomTs, fromPadX, toPadX, toScale, toDy, 1, atomRtl);
     }
 
     // Hit target on top so hover/click work despite per-frame SVG rebuilds.
-    slotG.appendChild(
-      slotHitRect(
-        logical,
-        -BOX_PAD,
-        by,
-        cellW + BOX_PAD * 2,
-        Math.max(bh, 1),
-        hover === logical
-      )
-    );
+    slotG.appendChild(slotHitRect(logical, -BOX_PAD, by, cellW + BOX_PAD * 2, Math.max(bh, 1), hover === logical));
 
     g.appendChild(slotG);
     items.push({ slotG, startCellW, endCellW, skip: false });
@@ -508,21 +397,14 @@ export function paintMorph(svg, state) {
   });
   items.forEach((item) => {
     if (item.skip || !item.slotG) return;
-    item.slotG.setAttribute(
-      "transform",
-      `translate(${lerp(item.startX, item.endX, prepT)}, 0)`
-    );
+    item.slotG.setAttribute("transform", `translate(${lerp(item.startX, item.endX, prepT)}, 0)`);
   });
 
   setViewBox(svg, {
     minY: fit.fromM.minY,
     maxY: fit.fromM.maxY,
     height: fit.fromM.height,
-    width: lerp(
-      Math.max(fit.fromM.width, startX, 1),
-      Math.max(fit.fromM.width, endX, 1),
-      prepT
-    ),
+    width: lerp(Math.max(fit.fromM.width, startX, 1), Math.max(fit.fromM.width, endX, 1), prepT),
     tight: !!fit.fromM.tight,
   });
   svg.replaceChildren(g);
@@ -530,10 +412,7 @@ export function paintMorph(svg, state) {
 }
 
 export function paintStatic(svg, script, opts = {}) {
-  const hover =
-    opts.hoverSlot == null || Number.isNaN(opts.hoverSlot)
-      ? -1
-      : opts.hoverSlot;
+  const hover = opts.hoverSlot == null || Number.isNaN(opts.hoverSlot) ? -1 : opts.hoverSlot;
   const g = el("g", { className: "script-morph__row" });
   if (opts.joined && script.joined?.path) {
     const jm = script.joined;
@@ -558,9 +437,7 @@ export function paintStatic(svg, script, opts = {}) {
     const reversed = !!opts.reversed;
     const isolGap = opts.isolGap || 0;
     const n = slots.length;
-    const order = reversed
-      ? [...Array(n).keys()].map((i) => n - 1 - i)
-      : [...Array(n).keys()];
+    const order = reversed ? [...Array(n).keys()].map((i) => n - 1 - i) : [...Array(n).keys()];
     let x = 0;
     order.forEach((logical, visual) => {
       const slot = slots[logical];
@@ -576,16 +453,12 @@ export function paintStatic(svg, script, opts = {}) {
       });
       cell.appendChild(
         el("path", {
-          className: opts.joining
-            ? "script-morph__slot script-morph__slot--unjoined"
-            : "script-morph__slot",
+          className: opts.joining ? "script-morph__slot script-morph__slot--unjoined" : "script-morph__slot",
           d: slotPath(slot),
         })
       );
       const hb = slotBoundsPad(slot);
-      cell.appendChild(
-        slotHitRect(logical, hb.x, hb.y, hb.w, hb.h, hover === logical)
-      );
+      cell.appendChild(slotHitRect(logical, hb.x, hb.y, hb.w, hb.h, hover === logical));
       g.appendChild(cell);
       x += (slot.advance || 0) + isolGap;
     });
